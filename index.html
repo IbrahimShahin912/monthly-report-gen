@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en" translate="no">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="google" content="notranslate">
+  <title>Monthly Report</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" crossorigin="anonymous"
+        href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thaana:wght@400;600;700&family=Poppins:wght@400;500;600;700&display=swap">
+  <link rel="preload" href="fonts/Faruma.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="topbar">
+  <!-- Reads as the top of the chart sidebar, not a separate bar. -->
+  <div class="topbar-side"><span class="tn">ޗާރޓްތައް</span></div>
+  <div class="topbar-main">
+    <!-- Preview zoom slider (10–200%). The percentage is a button: click it to fit the page to the window. -->
+    <div class="zoom">
+      <input type="range" id="zoomRange" min="10" max="200" step="1" value="100" aria-label="Zoom">
+      <button type="button" class="zoom-pct num" id="zoomPct">100%</button>
+    </div>
+  </div>
+</header>
+
+<div class="app">
+  <!-- The chart library, built by app.js from library/charts.js. -->
+  <nav class="pagelist" id="pagelist" aria-label="Charts"></nav>
+
+  <aside class="panel">
+
+    <!-- Built by app.js -->
+    <div id="pageEditor"></div>
+
+    <!-- Warnings (page too full, totals disagree). The Download / Reset buttons were removed:
+         download is the icon beside the page. -->
+    <p class="warn" id="warn" hidden></p>
+  </aside>
+
+  <main class="stage" id="stage">
+    <div class="scaler" id="scaler">
+      <div class="scale-inner" id="scaleInner">
+        <div class="report" id="report"></div>
+        <!-- Alignment grid and the move/resize frame for the selected chart (preview only, outside
+             #report so they're never exported). -->
+        <div class="grid" id="grid" hidden></div>
+        <div class="sel" id="sel" hidden></div>
+      </div>
+      <!-- Icon-only actions beside the page: step through pages, new page, download, delete. -->
+      <div class="stage-tools">
+        <!-- Page stepper: filled in by buildNav(); hidden while there is only one page. -->
+        <div class="pager" id="pager" hidden>
+          <button type="button" class="tool" id="prevPage" title="Previous page" aria-label="Previous page">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+          </button>
+          <span class="pager-at num" id="pagerAt">01/01</span>
+          <button type="button" class="tool" id="nextPage" title="Next page" aria-label="Next page">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+        <button type="button" class="tool" id="newPageTop" title="New page" aria-label="New page">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M6 3h7l5 5v13H6z"/>
+            <path d="M13 3v5h5"/>
+            <path d="M12 12v5M9.5 14.5h5"/>
+          </svg>
+        </button>
+        <button type="button" class="tool" id="downloadTop" title="Download this page as PNG" aria-label="Download this page as PNG">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 4v10"/>
+            <path d="M8 11l4 4 4-4"/>
+            <path d="M5 19h14"/>
+          </svg>
+        </button>
+        <!-- Shown by buildNav() only when the report has more than one page. -->
+        <button type="button" class="tool danger" id="deletePageTop" title="Delete this page" aria-label="Delete this page" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 7h16"/>
+            <path d="M10 4h4l1 3H9z"/>
+            <path d="M6 7l1 13h10l1-13"/>
+            <path d="M10 11v6M14 11v6"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Month picker for the header (filled by app.js; outside the report, so never exported). -->
+<div class="period-pop" id="periodPop" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.js"></script>
+<!-- The chart library (every chart the sidebar offers, with its default rows). -->
+<script src="library/charts.js"></script>
+<!-- The council logo as a data URL, so the PNG export never has to fetch the image file. -->
+<script src="assets/logo.js"></script>
+<!-- Picture icons for chart rows (data URLs), e.g. read-quran. -->
+<script src="assets/icon-images.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

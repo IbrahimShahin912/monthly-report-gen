@@ -1,0 +1,581 @@
+/* ---------- Fonts ---------- */
+/* Declared here (same-origin stylesheet) so html-to-image can embed it in the PNG. */
+@font-face {
+  font-family: "Faruma";
+  src: url("fonts/Faruma.ttf") format("truetype");
+  font-display: block;
+}
+
+/* ---------- Editor UI ---------- */
+:root {
+  --ui-bg: #eceef1;
+  --panel: #ffffff;
+  --line: #dfe3e8;
+  --ink: #1c2530;
+  --muted: #6b7684;
+  --accent: #1e4d59;
+  --tn: "Faruma";
+}
+
+* { box-sizing: border-box; }
+/* `display: grid/flex` on a component beats the browser's [hidden] rule, so state it again here. */
+[hidden] { display: none !important; }
+html, body { height: 100%; margin: 0; }
+/*
+ * FARUMA EVERYWHERE (user rule): the whole app inherits Faruma — sidebar, panel, top bar, buttons,
+ * inputs, dialogs — so anything added later gets it without a new font-family. Poppins stays only
+ * for numbers inside the report (`.report .num`). Don't add font-family to new UI.
+ */
+body { font: 14px/1.4 "Faruma", "Noto Sans Thaana", "Poppins", system-ui, sans-serif; color: var(--ink); background: var(--ui-bg); }
+input, select, textarea, button { font-family: inherit; }
+
+body { --topbar-h: 56px; }
+/* Chart library | editor panel | preview */
+.app { display: grid; grid-template-columns: 270px 340px 1fr; height: calc(100vh - var(--topbar-h)); }
+
+.pagelist { background: #fff; border-right: 1px solid var(--line); overflow-y: auto; padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; }
+
+.panel { background: var(--panel); border-right: 1px solid var(--line); overflow-y: auto; padding: 20px 20px 0; }
+.sub { color: var(--muted); margin: 0 0 16px; font-size: 12px; }
+
+/* Amount column fits money (2,992,856.36); bar-chart pages hold small counts, so it's narrower there. */
+.group { border-top: 1px solid var(--line); padding: 16px 0 6px; --amount-col: 118px; }
+.group.is-counts { --amount-col: 72px; }
+.group h2 {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0 0 10px; font-weight: 600;
+}
+
+.field { display: grid; gap: 4px; margin-bottom: 10px; font-size: 12px; color: var(--muted); }
+.field input:not([type=file]), .field select {
+  font: inherit; font-size: 14px; color: var(--ink); padding: 8px 10px;
+  border: 1px solid var(--line); border-radius: 8px; background: #fff; width: 100%;
+}
+input.tn { font-family: var(--tn), "Faruma", "Noto Sans Thaana", sans-serif; font-size: 16px; }
+
+/* Label | number | remove. Row colours come from the chart palette, so there's no colour picker. */
+.item { display: grid; grid-template-columns: minmax(0, 1fr) var(--amount-col) 32px; gap: 6px; margin-bottom: 6px; }
+.item input { font: inherit; padding: 7px 8px; border: 1px solid var(--line); border-radius: 8px; min-width: 0; color: var(--ink); }
+.item input:focus { outline: 0; border-color: var(--brand-600, #3f8193); box-shadow: 0 0 0 2px rgba(63, 129, 147, .18); }
+.item input[type="number"] { text-align: right; }
+.item .btn.icon { align-self: center; height: 32px; }
+.item-head { display: grid; grid-template-columns: minmax(0, 1fr) var(--amount-col) 32px; gap: 6px; font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+.sec-foot { display: flex; justify-content: space-between; align-items: center; margin: 8px 0 10px; font-size: 12px; color: var(--muted); }
+
+.btn { font: inherit; font-weight: 500; border: 1px solid var(--line); background: #fff; color: var(--ink); border-radius: 8px; padding: 8px 12px; cursor: pointer; }
+.btn:hover { background: #f4f6f8; }
+.btn:disabled { opacity: .6; cursor: progress; }
+.btn.icon { padding: 0; font-size: 18px; line-height: 1; }
+
+.warn { color: #9a3412; background: #fff7ed; border: 1px solid #fed7aa; padding: 8px 10px; border-radius: 8px; font-size: 12px; margin: 8px 0 18px; }
+
+/* Room on the right for the icon column beside the page. */
+.stage { position: relative; overflow: auto; display: grid; place-items: safe center; padding: 24px 74px 24px 24px; }
+
+/* Icon-only actions (user request: no words), stacked in a column just off the page's top-right
+   corner, so they stay beside the page whatever the zoom. */
+.stage-tools {
+  position: absolute; top: 0; left: 100%; margin-left: 12px; z-index: 2;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.tool {
+  width: 38px; height: 38px; display: grid; place-items: center; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 10px; background: #fff; color: var(--accent);
+  box-shadow: 0 2px 6px rgba(16, 24, 40, .08);
+}
+.tool:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+/* Page stepper above the icons: ‹ 01/03 › */
+.pager { display: grid; grid-template-columns: 38px 1fr 38px; gap: 4px; align-items: center; margin-bottom: 4px; }
+.pager .tool { width: 38px; height: 30px; }
+.pager-at { text-align: center; font-size: 11px; color: var(--muted); }
+.tool:disabled { opacity: .35; cursor: default; }
+.tool.danger { color: #9a3412; }
+.tool.danger:hover { background: #9a3412; border-color: #9a3412; color: #fff; }
+.tool svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.scaler { position: relative; box-shadow: 0 12px 40px rgba(16, 24, 40, .14); }
+.scale-inner { position: relative; width: 1200px; height: 1500px; transform-origin: 0 0; --vs: 1; }
+
+
+/* Chart sidebar: per-chart tools and the chart picker. */
+.chart-tools { display: flex; gap: 4px; }
+.chart-tools .btn.icon { width: 26px; height: 26px; line-height: 1; }
+.chart-tools .btn.icon:disabled { opacity: .35; cursor: default; }
+.btn.pick { font-size: 12px; padding: 9px 8px; text-align: center; }
+.btn.pick:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Chart library: one flat list, named by each chart's Dhivehi heading. A chart already on the page
+   is drawn pressed; one used on another page keeps a lighter marker. */
+.lib { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
+/* Optional heading over a set of related charts (library `group`), e.g. the budget charts. */
+/* Each group is its own container, so separate groups are easy to tell apart (user request): a solid
+   teal header bar (name right; chevron + chart count left) over a pale-teal body holding its charts.
+   Collapsed, only the bar shows, with a white badge counting the group's charts on this page. */
+.lib-block {
+  display: flex; flex-direction: column; gap: 5px; margin: 2px 0 10px;
+  background: #eaf4f7; border: 1px solid #cfe5ec; border-radius: 12px; padding: 0 6px 6px; overflow: hidden;
+}
+.lib-block.is-collapsed { padding-bottom: 0; }
+.lib-items { display: flex; flex-direction: column; gap: 5px; }
+.lib-group {
+  display: flex; align-items: center; gap: 6px; width: auto; margin: 0 -6px 1px;
+  font: inherit; font-size: 15px; color: #fff; background: var(--accent); cursor: pointer;
+  padding: 8px 10px; border: 0;
+}
+.lib-block.is-collapsed .lib-group { margin-bottom: 0; }
+.lib-group:hover { background: #2f6e7e; }
+.lib-group-name { flex: 1; min-width: 0; text-align: right; order: 4; }
+.lib-chev { order: 1; flex: none; width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; transition: transform .15s; }
+.lib-block.is-collapsed .lib-chev { transform: rotate(90deg); }
+.lib-group-count { order: 2; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 99px; display: grid; place-items: center; background: rgba(255, 255, 255, .18); font-size: 11px; }
+.lib-group-used { order: 3; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 99px; display: grid; place-items: center; background: #fff; color: var(--accent); font-size: 11px; font-weight: 700; }
+/* Inside a group, a chart on this page must still stand out from the teal bar above it. */
+.lib-block .btn.pick { background: #fff; }
+/* A chart on this page: one bar, with the ✕ in its own column on the right — no overlap with the
+   (right-aligned) Dhivehi name. The wrapper carries the colour; the inner buttons are transparent. */
+.pick-wrap.in-use {
+  display: grid; grid-template-columns: minmax(0, 1fr) 36px; align-items: stretch;
+  background: var(--accent); border: 1px solid var(--accent); border-radius: 8px; overflow: hidden; color: #fff;
+}
+.pick-wrap.in-use:hover { background: #2f6e7e; border-color: #2f6e7e; }
+.pick-wrap .btn.pick.in-use { background: none; border: 0; border-radius: 0; color: inherit; }
+.pick-wrap .btn.pick.in-use:hover { background: none; }
+/* The ✕ is red (same red as Delete page) so "remove" reads differently from the teal chart bar. */
+.pick-x {
+  display: grid; place-items: center; font: inherit; font-size: 13px; font-weight: 700; line-height: 1; cursor: pointer;
+  border: 0; background: #b42318; color: #fff;
+}
+.pick-x:hover { background: #912018; }
+.pick-x:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
+.btn.pick.used-elsewhere { border-color: var(--brand-200, #a9d3df); background: #f7fbfc; }
+.lib .btn.pick { text-align: right; padding: 10px; }
+.pick-name { display: block; font-size: 14px; line-height: 1.5; }
+/*
+ * Top bar. Its left column is the head of the chart sidebar (same width, same white surface and
+ * right border), so the two read as one panel; the rest stays the teal bar with the zoom toggle.
+ */
+.topbar { height: var(--topbar-h); display: grid; grid-template-columns: 270px 1fr; }
+.topbar-side {
+  display: flex; align-items: center; justify-content: center;
+  background: #fff; border-right: 1px solid var(--line); padding: 0 12px;
+  font-size: 19px; line-height: 1.4; color: var(--accent); direction: rtl;
+}
+.topbar-main {
+  background: var(--accent); color: #fff; padding: 0 20px;
+  display: flex; align-items: center; justify-content: flex-end; gap: 16px;
+}
+/* Preview zoom slider (Canva-style): filled track up to the thumb, round white thumb, percentage. */
+.zoom { display: flex; align-items: center; gap: 14px; }
+#zoomRange {
+  --fill: 50%;
+  -webkit-appearance: none; appearance: none; width: 180px; height: 6px; margin: 0; border-radius: 99px;
+  background: linear-gradient(to right, #9fb8c1 var(--fill), rgba(255, 255, 255, .28) var(--fill));
+  cursor: pointer;
+}
+#zoomRange::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 22px; height: 22px; border-radius: 50%;
+  background: #fff; border: 1px solid #9aa3ad; box-shadow: 0 1px 4px rgba(16, 24, 40, .3);
+}
+#zoomRange::-moz-range-thumb {
+  width: 22px; height: 22px; border-radius: 50%; box-sizing: border-box;
+  background: #fff; border: 1px solid #9aa3ad; box-shadow: 0 1px 4px rgba(16, 24, 40, .3);
+}
+#zoomRange:focus-visible { outline: 2px solid #fff; outline-offset: 4px; }
+.zoom-pct { min-width: 48px; padding: 4px 6px; border: 0; border-radius: 6px; background: none; color: #fff; font-size: 14px; text-align: right; cursor: pointer; }
+.zoom-pct:hover { background: rgba(255, 255, 255, .14); }
+
+/* Row list in the panel: read-only, because the text is typed on the page. */
+
+@media (max-width: 1100px) {
+  .app { grid-template-columns: 210px 330px 1fr; }
+  .topbar { grid-template-columns: 210px 1fr; }
+}
+@media (max-width: 900px) {
+  .app { grid-template-columns: 1fr; height: auto; }
+  .pagelist { max-height: 240px; border-right: 0; border-bottom: 1px solid var(--line); }
+  .panel { border-right: 0; }
+  .stage { padding: 16px 62px 16px 16px; }
+  .topbar { grid-template-columns: 1fr auto; }
+  .topbar-side { border-right: 0; align-items: center; }
+  .topbar-main { padding: 0 12px; }
+}
+
+/* ---------- Report canvas (1200 × 1500) ---------- */
+.report {
+  --tn: "Faruma";
+  /* Council brand palette, sampled from assets/council-logo.png */
+  --brand-900: #1e4d59;
+  --brand-700: #2f6e7e;
+  --brand-600: #3f8193;
+  --brand-400: #62a3bf;
+  --brand-200: #a9d3df;
+  --brand-100: #d9ecf1;
+  position: relative; width: 1200px; height: 1500px; overflow: hidden;
+  color: #17323a; font-family: var(--tn), "Faruma", "Noto Sans Thaana", sans-serif;
+  background-color: #f9fbfb;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='56'%3E%3Cpath d='M0 20 Q32.5 6 65 20 T130 20 T195 20 T260 20' fill='none' stroke='%23000' stroke-opacity='.035' stroke-width='2'/%3E%3Cpath d='M0 46 Q32.5 34 65 46 T130 46 T195 46 T260 46' fill='none' stroke='%23000' stroke-opacity='.025' stroke-width='1.5'/%3E%3C/svg%3E");
+}
+/* Editable text in the preview (never exported: renderReport(true) omits contenteditable). */
+.report [data-e] { cursor: text; border-radius: 6px; transition: background .12s, box-shadow .12s; }
+.report [data-e]:hover { background: rgba(98, 163, 191, .14); box-shadow: 0 0 0 3px rgba(98, 163, 191, .14); }
+.report [data-e]:focus { outline: 0; background: #fff; box-shadow: 0 0 0 2px var(--brand-600); }
+/* An empty field (a new row's label, a blank heading) still needs a target to click on. */
+/* Only while editing ([contenteditable]): an emptied field must not print "…" into the PNG. */
+.report [data-e][contenteditable]:empty, .report [data-e][contenteditable].is-empty { min-width: 2.5em; }
+.report [data-e][contenteditable]:empty::after, .report [data-e][contenteditable].is-empty::after { content: "…"; color: var(--brand-400); }
+.report [data-e]:focus::after { content: none; }
+
+.report .tn { font-family: var(--tn), "Faruma", "Noto Sans Thaana", sans-serif; }
+.report .num { font-family: "Poppins", sans-serif; direction: ltr; unicode-bidi: isolate; }
+
+/* Report header: same width as the card (64px side margins), logo right, council name. Hardcoded. */
+.rhead {
+  /* Ends at 142px: midway between the new-page and download icons beside the page at the fitted zoom
+     (~30%), as the user asked. The icons keep their screen size, so this only lines up at that zoom. */
+  position: absolute; top: 46px; left: 64px; right: 64px; height: 96px;
+  display: flex; align-items: center; gap: 20px; padding: 0 28px;
+  background: #fff; border: 2px solid var(--brand-200); border-radius: 18px;
+  border-bottom: 6px solid var(--brand-700);
+}
+/* Crop the logo file's white margin to the mark. Measured from the pixels (327×430): the mark spans
+   x 40–287 (its lower tip reaches x 287 at y 333), y 51–352. The frame's rounded corner runs from
+   (261, 30) to (313, 98), so the box x 36–291, y 48–356 would catch it at the top-right; clip-path cuts
+   that corner off along a line from (250, 48) to (291, 110), which passes through empty white between
+   the arc and the stripes. Box = 255 × 308 × s, s = 70 / 308. */
+.rh-logo {
+  --s: .2273; flex: none; position: relative; width: calc(255px * var(--s)); height: calc(308px * var(--s)); overflow: hidden;
+  clip-path: polygon(0 0, 83.9% 0, 100% 20.1%, 100% 100%, 0 100%);
+}
+.rh-logo img { position: absolute; left: calc(-36px * var(--s)); top: calc(-48px * var(--s)); width: calc(327px * var(--s)); height: calc(430px * var(--s)); }
+.rh-name { font-size: 29px; line-height: 1.4; color: var(--brand-900); }
+/* Month + year at the header's left end: a pale-teal pill. In the preview it's clickable (month picker);
+   the calendar icon is drawn only while editing, so the PNG shows just the text. */
+.rh-date {
+  margin-right: auto; display: flex; align-items: center; gap: 10px;
+  padding: 8px 22px; border-radius: 99px; background: var(--brand-100); color: var(--brand-900);
+  font-size: 26px; line-height: 1.3; white-space: nowrap;
+}
+.rh-date .num { font-size: 24px; font-weight: 600; }
+.rh-date[role="button"] { cursor: pointer; }
+.rh-date[role="button"]:hover { background: #c8e3ea; }
+.rh-cal { width: 24px; height: 24px; fill: none; stroke: var(--brand-700); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.card {
+  /* 64px page margins at the sides and bottom; the top leaves room for the header (46 + 96 + 20). */
+  position: absolute; inset: 162px 64px 64px;
+  border: 2px solid var(--brand-200); border-radius: 18px; padding: 8px 48px;
+  display: flex; flex-direction: column; background: rgba(255, 255, 255, .75);
+}
+/* Placeholder for a chart that has no labels or numbers yet. Preview only — renderReport(true)
+   leaves these out for the PNG export. */
+.sec.ph { justify-content: center; }
+.ph-box {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  min-height: calc(150px * var(--k)); border: 2px dashed var(--brand-200); border-radius: 18px;
+  background: rgba(255, 255, 255, .5); color: var(--brand-600); text-align: center;
+}
+.ph-type { font-size: calc(26px * var(--k)); font-weight: 600; }
+.ph-hint { font-size: calc(17px * var(--k)); color: #7b96a0; }
+
+/* Line between charts — solid and mid-tone so it reads clearly (the old faint dashed line was hard to see). */
+.divider { flex: none; height: 3px; background: var(--brand-400); border-radius: 99px; }
+
+/*
+ * Chart sizing scales with --k (set on .card by fitCard() in app.js).
+ * 1 = full size; it steps down until both charts fit inside the card.
+ */
+.card { --kp: 1; }
+/*
+ * Chart position and size (chart.box in app.js). A page with no boxes lays out automatically with the
+ * page fit factor --kp. Once charts are moved or resized, the card is .free: every chart sits
+ * absolutely at its box with its own --k inline (fitBox), and the dividers go.
+ */
+/* Every chart section: .sec for most types, .tiles for stat tiles. */
+.sec, .tiles { --k: var(--kp, 1); }
+.card.free > section { position: absolute; margin: 0; }
+.card.free > .divider { display: none; }
+
+/* flex-basis auto: a chart with more rows takes more of the card; min-height stays auto so
+   overflow shows up in card.scrollHeight for fitCard() to detect. */
+.sec { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: center; gap: calc(32px * var(--k)); padding: calc(12px * var(--k)) 0; }
+.sec-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; }
+.sec-title { font-size: calc(34px * var(--k)); font-weight: 700; line-height: 1.35; color: var(--brand-900); }
+.sec-total { display: flex; align-items: baseline; gap: calc(14px * var(--k)); }
+.sec-total .tn { font-size: calc(22px * var(--k)); color: var(--brand-600); }
+.sec-total .num { font-size: calc(44px * var(--k)); font-weight: 700; letter-spacing: -.01em; }
+
+/* Stacked bar */
+.stack { display: flex; gap: 6px; height: calc(84px * var(--k)); }
+.seg { border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: calc(22px * var(--k)); font-weight: 600; min-width: 12px; }
+
+/* Breakdown legend */
+.legend { display: grid; }
+.row { display: grid; grid-template-columns: calc(22px * var(--k)) 1fr auto calc(96px * var(--k)); align-items: center; gap: calc(18px * var(--k)); padding: calc(13px * var(--k) * var(--k)) 0; border-bottom: 1px solid #e7e7e4; }
+.row:last-child { border-bottom: 0; }
+.dot { width: calc(20px * var(--k)); height: calc(20px * var(--k)); border-radius: 6px; }
+.lbl { font-size: calc(26px * var(--k)); line-height: 1.4; }
+.val { font-size: calc(26px * var(--k)); font-weight: 500; }
+.pct { font-size: calc(20px * var(--k)); color: #7a7a76; text-align: left; }
+
+/* Horizontal bars */
+.bars { display: grid; gap: calc(24px * var(--k)); }
+.bar-top { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; margin-bottom: calc(10px * var(--k)); }
+.bar-top .meta { display: flex; align-items: baseline; gap: 14px; }
+.bar-track { height: calc(34px * var(--k)); background: #e6f0f2; border-radius: 10px; display: flex; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 10px; }
+
+/* Waffle */
+.waffle-wrap { display: flex; align-items: center; gap: 36px; }
+.waffle-wrap .legend { flex: 1; min-width: 0; }
+.waffle-wrap .row { grid-template-columns: calc(20px * var(--k)) minmax(0, 1fr) auto calc(76px * var(--k)); gap: calc(14px * var(--k)); }
+/* Labels wrap (long labels used to run under the waffle grid); amounts stay on one line. */
+.waffle-wrap .lbl, .waffle-wrap .val { font-size: calc(23px * var(--k)); }
+.waffle-wrap .val { white-space: nowrap; }
+.waffle { display: grid; grid-template-columns: repeat(10, calc(22px * var(--k))); gap: calc(4px * var(--k)); flex: none; }
+.waffle i { width: calc(22px * var(--k)); height: calc(22px * var(--k)); border-radius: 5px; }
+
+/* Counts page: horizontal bars with the value just past the bar end */
+.cbars { display: grid; gap: calc(16px * var(--k)); }
+.cbar-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: calc(28px * var(--k)); }
+.cbar-row .lbl { font-size: calc(25px * var(--k)); line-height: 1.4; }
+.cbar-track { display: flex; align-items: center; gap: calc(12px * var(--k)); height: calc(46px * var(--k)); }
+.cbar-fill { flex: none; height: 100%; min-width: 6px; border-radius: 8px; }
+.cbar-track .val { font-size: calc(24px * var(--k)); font-weight: 600; color: var(--brand-900); }
+
+/* Stat tiles page: two-column grid of tiles */
+/* Charts keep their natural height and sit centred in the space they get (2026-09-20): the tile grid
+   used to stretch to fill it, so three tiles alone on a page became tall, mostly empty columns (user:
+   "why is this chart stretched"). The page fit (--kp, up to 1.3) still scales them up to use the room.
+   The same applies to the number cards, card grid and list below. */
+.tiles { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: center; gap: calc(18px * var(--k)); padding: calc(34px * var(--k)) 0; }
+.tile-grid { flex: none; display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 1fr; gap: calc(16px * var(--k)); }
+.tile-grid.cols-1 { grid-template-columns: 1fr; }
+.tile-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+/* Narrow three-across tiles: number on top, label below (right-aligned in RTL). */
+.tile-grid.cols-3 .tile-top { flex-direction: column-reverse; align-items: flex-start; gap: calc(10px * var(--k)); }
+.tile {
+  display: grid; gap: calc(14px * var(--k)); align-content: center;
+  padding: calc(20px * var(--k)) calc(24px * var(--k)) calc(22px * var(--k));
+  background: #fff; border: 1.5px solid var(--brand-100); border-right: 7px solid var(--c); border-radius: 16px;
+}
+.tile.wide { grid-column: 1 / -1; }
+.tile-top { display: flex; align-items: center; justify-content: space-between; gap: calc(18px * var(--k)); }
+.tile .lbl { font-size: calc(26px * var(--k)); line-height: 1.45; }
+.tile-num { flex: none; font-size: calc(64px * var(--k)); font-weight: 700; line-height: 1; letter-spacing: -.02em; color: var(--brand-900); }
+.tile-bar { display: flex; height: calc(10px * var(--k)); background: #e6f0f2; border-radius: 99px; overflow: hidden; }
+.tile-bar i { display: block; height: 100%; background: var(--c); border-radius: 99px; }
+
+/* Number list (Support page): each row is a raised card — label on the right, the number in a tinted panel
+   (row colour) on the left. The user asked for a card effect. */
+.nsec { justify-content: center; }
+.nlist { flex: none; display: grid; grid-auto-rows: 1fr; gap: calc(14px * var(--k)); }
+.nrow {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: calc(32px * var(--k));
+  padding: calc(12px * var(--k)) calc(30px * var(--k)) calc(12px * var(--k)) calc(12px * var(--k));
+  background: #fff; border: 1.5px solid var(--brand-100); border-radius: 18px;
+  box-shadow: 0 6px 18px rgba(30, 77, 89, .09), 0 1px 3px rgba(30, 77, 89, .06);
+}
+.nrow-lbl { font-size: calc(28px * var(--k)); line-height: 1.5; color: var(--brand-900); }
+/* A card row with an icon (row.icon): a solid tile in the row colour at the card's right edge. */
+.nrow.has-icon { grid-template-columns: auto minmax(0, 1fr) auto; padding-right: calc(12px * var(--k)); }
+.nrow-icon {
+  width: calc(84px * var(--k)); height: calc(84px * var(--k)); border-radius: 14px;
+  display: grid; place-items: center; background: var(--c); color: #fff;
+}
+/* Picture icons (black line drawings): made white on the tile. */
+.nrow-icon .icon-img, .nstat-icon .icon-img { width: 66%; height: 66%; object-fit: contain; filter: brightness(0) invert(1); }
+.nrow-icon svg { width: 60%; height: 60%; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+/* Grid sections (layout: 'grid'): three-across raised cards — number on top, colour rule, label below. */
+.nsub { font-size: calc(28px * var(--k)); line-height: 1.45; color: var(--brand-600); text-align: center; }
+.ngrid { flex: none; display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: 1fr; gap: calc(16px * var(--k)); }
+.ngrid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+.ncard {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(12px * var(--k));
+  padding: calc(16px * var(--k)) calc(18px * var(--k)); text-align: center;
+  background: #fff; border: 1.5px solid var(--brand-100); border-top: calc(6px * var(--k)) solid var(--c); border-radius: 18px;
+  box-shadow: 0 6px 18px rgba(30, 77, 89, .09), 0 1px 3px rgba(30, 77, 89, .06);
+}
+.ncard-num {
+  font-size: calc(62px * var(--k)); font-weight: 700; line-height: 1; letter-spacing: -.02em; color: var(--brand-900);
+  padding: calc(8px * var(--k)) calc(22px * var(--k)); border-radius: 13px; background: color-mix(in srgb, var(--c) 16%, #fff);
+}
+.ncard-lbl { font-size: calc(24px * var(--k)); line-height: 1.5; color: var(--brand-900); }
+/* Stat panels (grid rows with an icon): a tinted rounded panel, the icon in a solid rounded-square tile
+   (row colour) on the right, then the big number over its label. Deliberately not the reference's
+   circle-icon-plus-number look (user asked for a different design). Solid colours only (PNG size). */
+.nstats { display: grid; grid-template-columns: repeat(2, 1fr); gap: calc(16px * var(--k)); }
+.nstat {
+  display: flex; align-items: center; gap: calc(22px * var(--k));
+  padding: calc(20px * var(--k)) calc(22px * var(--k));
+  background: color-mix(in srgb, var(--c) 9%, #fff); border: 1.5px solid color-mix(in srgb, var(--c) 28%, #fff);
+  border-radius: 20px;
+}
+.nstat-icon {
+  flex: none; width: calc(92px * var(--k)); height: calc(92px * var(--k)); border-radius: calc(24px * var(--k));
+  display: grid; place-items: center; background: var(--c); color: #fff;
+  box-shadow: 0 6px 14px color-mix(in srgb, var(--c) 30%, transparent);
+}
+.nstat-icon svg { width: 58%; height: 58%; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.nstat-text { min-width: 0; display: flex; flex-direction: column; gap: calc(6px * var(--k)); }
+.nstat-num { font-size: calc(58px * var(--k)); font-weight: 700; line-height: 1; letter-spacing: -.02em; color: var(--brand-900); text-align: right; }
+.nstat-lbl { font-size: calc(24px * var(--k)); line-height: 1.45; color: var(--brand-900); }
+/* Three or more stat panels: three across, each stacked — icon tile, big number, label — centred. */
+.nstats.cols-3 { grid-template-columns: repeat(3, 1fr); }
+.nstats.cols-3 .nstat { flex-direction: column; justify-content: center; text-align: center; gap: calc(16px * var(--k)); padding: calc(26px * var(--k)) calc(16px * var(--k)); }
+.nstats.cols-3 .nstat-text { align-items: center; }
+.nstats.cols-3 .nstat-num { text-align: center; }
+/* A grid chart made only of stat panels (no cards): the panels sit in the middle of the chart. */
+.nsec.only-stats { justify-content: center; }
+/* Number list (type 'list'): one white panel per chart, one line per row, coloured edge on the right.
+   Labels stay large — built for pages with many rows (the 2-across grid shrank them too far to read). */
+.lsec { justify-content: center; gap: calc(14px * var(--k)); }
+/* Headings must stand out from the (large) row labels: bigger, with an accent bar. */
+.lsec .sec-title { font-size: calc(40px * var(--k)); padding-right: calc(16px * var(--k)); border-right: calc(8px * var(--k)) solid var(--brand-400); line-height: 1.3; }
+.llist {
+  flex: none; display: grid; grid-auto-rows: 1fr;
+  background: #fff; border: 1.5px solid var(--brand-100); border-radius: 18px; overflow: hidden;
+  box-shadow: 0 6px 18px rgba(30, 77, 89, .09), 0 1px 3px rgba(30, 77, 89, .06);
+}
+.lrow {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: calc(28px * var(--k));
+  padding: calc(5px * var(--k)) calc(28px * var(--k)) calc(5px * var(--k)) calc(16px * var(--k));
+  border-right: calc(8px * var(--k)) solid var(--c);
+}
+.lrow + .lrow { border-top: 1.5px solid var(--brand-100); }
+.lrow-lbl { font-size: calc(34px * var(--k)); line-height: 1.45; color: var(--brand-900); }
+.lrow-num {
+  min-width: calc(104px * var(--k)); padding: calc(6px * var(--k)) calc(18px * var(--k)); border-radius: 12px; text-align: center;
+  background: color-mix(in srgb, var(--c) 16%, #fff);
+  font-size: calc(46px * var(--k)); font-weight: 700; line-height: 1.1; letter-spacing: -.02em; color: var(--brand-900);
+}
+.nrow-num {
+  align-self: stretch; display: flex; align-items: center; justify-content: center;
+  min-width: calc(128px * var(--k)); border-radius: 13px;
+  background: color-mix(in srgb, var(--c) 16%, #fff); border-left: calc(6px * var(--k)) solid var(--c);
+  font-size: calc(58px * var(--k)); font-weight: 700; line-height: 1; letter-spacing: -.02em; color: var(--brand-900);
+}
+
+/* Finance progress chart (kind: 'progress'): used amount (right), big percentage (middle), total (left), filled bar */
+/* Progress (budget used): percentage + bar on one row, then two stat panels */
+.prog { display: grid; gap: calc(34px * var(--k)); }
+.prog-meter { display: flex; align-items: center; gap: calc(36px * var(--k)); }
+.prog-pct { flex: none; font-size: calc(96px * var(--k)); font-weight: 700; line-height: 1; letter-spacing: -.03em; color: var(--brand-900); }
+.prog-track { flex: 1 1 auto; display: flex; height: calc(44px * var(--k)); border-radius: 99px; overflow: hidden; }
+.prog-fill { height: 100%; border-radius: 99px; }
+.prog-stats { display: grid; grid-template-columns: 1fr 1fr; gap: calc(22px * var(--k)); }
+.prog-stat {
+  display: grid; align-content: space-between; gap: calc(18px * var(--k));
+  padding: calc(24px * var(--k)) calc(30px * var(--k));
+  background: #f4f9fa; border: 1.5px solid var(--brand-100); border-radius: 18px;
+}
+.prog-stat-head { display: flex; align-items: flex-start; gap: calc(14px * var(--k)); }
+.prog-swatch { flex: none; width: calc(20px * var(--k)); height: calc(20px * var(--k)); margin-top: calc(9px * var(--k)); border-radius: 6px; box-shadow: inset 0 0 0 1.5px rgba(30, 77, 89, .18); }
+.prog-stat .lbl { font-size: calc(26px * var(--k)); line-height: 1.45; color: var(--brand-700); }
+.prog-val { font-size: calc(46px * var(--k)); font-weight: 700; line-height: 1.1; letter-spacing: -.01em; color: var(--brand-900); }
+
+/* ---------- Move/resize frame and alignment grid (preview only) ---------- */
+/* Sizes are divided by --vs (the preview zoom) so the frame, handles and grid look the same at any zoom. */
+.sel {
+  position: absolute; z-index: 5; pointer-events: none;
+  outline: calc(2px / var(--vs)) solid #7d4cdb; outline-offset: calc(4px / var(--vs));
+}
+/* Grid: a line every 27px (the snapping step), a stronger one every 81px (12 columns), centre lines. */
+.grid {
+  position: absolute; z-index: 4; pointer-events: none; opacity: .55;
+  --line: calc(1px / var(--vs));
+  background-image:
+    linear-gradient(to right, rgba(125, 76, 219, .28) var(--line), transparent var(--line)),
+    linear-gradient(to bottom, rgba(125, 76, 219, .28) var(--line), transparent var(--line)),
+    linear-gradient(to right, rgba(125, 76, 219, .12) var(--line), transparent var(--line)),
+    linear-gradient(to bottom, rgba(125, 76, 219, .12) var(--line), transparent var(--line));
+  background-size: 81px 81px, 81px 81px, 27px 27px, 27px 27px;
+  outline: var(--line) solid rgba(125, 76, 219, .35);
+  transition: opacity .12s;
+}
+.grid.dragging { opacity: 1; }
+.grid::before, .grid::after { content: ""; position: absolute; background: rgba(219, 76, 150, .55); }
+.grid::before { left: 50%; top: 0; bottom: 0; width: calc(1.5px / var(--vs)); }
+.grid::after { top: 50%; left: 0; right: 0; height: calc(1.5px / var(--vs)); }
+body.dragging-chart, body.dragging-chart * { user-select: none !important; cursor: grabbing !important; }
+.report .card > section { cursor: grab; }
+.report .card > section [data-e] { cursor: text; }
+.sel .handle {
+  position: absolute; pointer-events: auto; box-sizing: border-box; background: #fff;
+  border: calc(1.5px / var(--vs)) solid #9aa3ad; border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(16, 24, 40, .25);
+}
+.sel .h-nw, .sel .h-ne, .sel .h-sw, .sel .h-se { width: calc(14px / var(--vs)); height: calc(14px / var(--vs)); margin: calc(-7px / var(--vs)); }
+/* Side handles are pills, like Canva's. */
+.sel .h-n, .sel .h-s { width: calc(26px / var(--vs)); height: calc(10px / var(--vs)); margin: calc(-5px / var(--vs)) calc(-13px / var(--vs)); border-radius: 99px; }
+.sel .h-e, .sel .h-w { width: calc(10px / var(--vs)); height: calc(26px / var(--vs)); margin: calc(-13px / var(--vs)) calc(-5px / var(--vs)); border-radius: 99px; }
+.sel .h-nw { left: calc(-4px / var(--vs)); top: calc(-4px / var(--vs)); cursor: nwse-resize; }
+.sel .h-ne { left: calc(100% + 4px / var(--vs)); top: calc(-4px / var(--vs)); cursor: nesw-resize; }
+.sel .h-sw { left: calc(-4px / var(--vs)); top: calc(100% + 4px / var(--vs)); cursor: nesw-resize; }
+.sel .h-se { left: calc(100% + 4px / var(--vs)); top: calc(100% + 4px / var(--vs)); cursor: nwse-resize; }
+.sel .h-n { left: 50%; top: calc(-4px / var(--vs)); cursor: ns-resize; }
+.sel .h-s { left: 50%; top: calc(100% + 4px / var(--vs)); cursor: ns-resize; }
+.sel .h-e { left: calc(100% + 4px / var(--vs)); top: 50%; cursor: ew-resize; }
+.sel .h-w { left: calc(-4px / var(--vs)); top: 50%; cursor: ew-resize; }
+.sel.dragging .handle { background: #7d4cdb; border-color: #7d4cdb; }
+
+
+/* ---------- Panel: one card per chart ---------- */
+/* Each chart is a white card with a teal header (number + Dhivehi heading); the one selected on the
+   page gets the same purple as the page's selection frame. */
+.group.chart {
+  border: 1px solid var(--line); border-radius: 12px; background: #fff;
+  padding: 0 12px 4px; margin: 0 0 16px; overflow: hidden;
+  box-shadow: 0 1px 3px rgba(16, 24, 40, .06);
+  transition: box-shadow .15s, border-color .15s;
+}
+.group.chart + .group.chart { border-top: 1px solid var(--line); }
+.group.chart.is-selected { border-color: #7d4cdb; box-shadow: 0 0 0 2px #7d4cdb, 0 4px 14px rgba(125, 76, 219, .15); }
+.group.chart .chart-head {
+  margin: 0 -12px 12px; padding: 8px 10px; background: var(--accent); color: #fff;
+  display: flex; align-items: center; gap: 10px; text-transform: none; letter-spacing: 0;
+}
+.group.chart.is-selected .chart-head { background: #7d4cdb; }
+.chart-no {
+  flex: none; min-width: 28px; height: 28px; padding: 0 6px; border-radius: 99px;
+  display: grid; place-items: center; background: #fff; color: var(--accent); font-size: 13px; font-weight: 700;
+}
+.group.chart.is-selected .chart-no { color: #7d4cdb; }
+.chart-name { flex: 1; min-width: 0; font-size: 16px; font-weight: 400; line-height: 1.5; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; }
+.chart-head .chart-tools .btn.icon { background: rgba(255, 255, 255, .14); border-color: rgba(255, 255, 255, .28); color: #fff; }
+.chart-head .chart-tools .btn.icon:hover:not(:disabled) { background: rgba(255, 255, 255, .28); }
+
+/* Page line in the panel: "Page: NN" on the left, Reset layout / Delete page on the right. */
+/* The page line: one slim row — a small "Page 01/02" chip, the pill buttons on the right. The user
+   found a tinted card with a big badge took too much room. */
+.group:has(> .page-head) { border-top: 0; padding: 0 0 10px; }
+.group > .page-head { margin: 0; flex-wrap: wrap; row-gap: 6px; text-transform: none; letter-spacing: 0; }
+.page-chip {
+  display: inline-flex; align-items: baseline; gap: 4px; padding: 3px 9px; border-radius: 6px;
+  background: var(--accent); color: #d9ecf1; font-size: 12px; font-weight: 500; white-space: nowrap;
+}
+.page-chip b { color: #fff; font-size: 13px; font-weight: 700; }
+.page-of { color: #a9d3df; font-size: 12px; }
+.page-head .page-actions { display: flex; align-items: center; gap: 8px; }
+/* Pill buttons on the page line: purple Reset layout, red Delete page. */
+.btn.pill-btn {
+  display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 99px; white-space: nowrap;
+  font-size: 11px; font-weight: 600; text-transform: none; letter-spacing: 0;
+}
+.btn.pill-btn svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.btn.reset-layout { color: #7d4cdb; background: #f3eefd; border: 1px solid #d9c9f7; }
+.btn.reset-layout:hover { background: #e9e0fb; }
+.btn.delete-page { color: #b42318; background: #fef3f2; border: 1px solid #fecdca; }
+.btn.delete-page:hover { background: #b42318; border-color: #b42318; color: #fff; }
+
+/* ---------- Month picker popover (header date) ---------- */
+.period-pop {
+  position: fixed; z-index: 50; width: 264px; padding: 10px;
+  background: #fff; border: 1px solid var(--line); border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(16, 24, 40, .18);
+}
+.pp-year { display: grid; grid-template-columns: 32px 1fr 32px; align-items: center; margin-bottom: 8px; }
+.pp-year .num { text-align: center; font-size: 16px; font-weight: 700; color: var(--accent); }
+.pp-step { height: 30px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--accent); font: inherit; font-size: 18px; line-height: 1; cursor: pointer; }
+.pp-step:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+.pp-months { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.pp-month { padding: 7px 4px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); font: inherit; font-size: 13px; cursor: pointer; }
+.pp-month:hover { border-color: var(--accent); color: var(--accent); }
+.pp-month.on { background: var(--accent); border-color: var(--accent); color: #fff; }
