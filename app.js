@@ -1693,7 +1693,7 @@
     if (!bar) return;
     const chart = current?.charts.find((c) => c.id === selectedId);
     bar.hidden = !sec || chart?.type !== 'text';
-    $('selX').hidden = bar.hidden;
+    $('selX').hidden = !sec; // every selected item can be removed (charts too)
     $('selEdges').hidden = bar.hidden;
     if (bar.hidden) {
       $('ttbPop').hidden = true;
@@ -1828,12 +1828,19 @@
     commit();
   }
 
-  // The red ✕ at a selected heading/text box's top-right corner (and the Delete key): remove it.
-  function removeTextBox(ask) {
+  /*
+   * The red ✕ at the selected item's top-right corner, and the Delete key: remove it. Text boxes go at
+   * once from the ✕ (asked first from the Delete key when they have text). Charts always ask: since the
+   * sidebar and panel are hidden, this is the only way to take a chart off a page (user, 2026-11-25:
+   * charts left on the live site's saved page "I can't even remove them").
+   */
+  function removeSelected(ask) {
     const index = current ? current.charts.findIndex((c) => c.id === selectedId) : -1;
     const chart = current?.charts[index];
-    if (chart?.type !== 'text') return;
-    if (ask && chart.heading.trim() && !confirm(`Remove the ${({ body: 'text', list: 'list' })[chart.style] || 'heading'} "${chart.heading.trim()}"?`)) return;
+    if (!chart) return;
+    if (chart.type !== 'text') {
+      if (!confirm(`Remove ${chart.heading ? `the chart "${chart.heading}"` : 'this chart'} from the page?`)) return;
+    } else if (ask && chart.heading.trim() && !confirm(`Remove the ${({ body: 'text', list: 'list' })[chart.style] || 'heading'} "${chart.heading.trim()}"?`)) return;
     current.charts.splice(index, 1);
     select(null);
     buildEditor();
@@ -1942,7 +1949,7 @@
       + '</div>'
       + ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w']
       .map((h) => `<span class="handle h-${h}" data-h="${h}"></span>`).join('') + toolbarHTML()
-      + '<button type="button" class="sel-x" id="selX" title="Remove this text box" aria-label="Remove this text box" hidden>✕</button>';
+      + '<button type="button" class="sel-x" id="selX" title="Remove from the page" aria-label="Remove from the page" hidden>✕</button>';
     // Mini toolbar: pressing it must not deselect, start a drag or take focus from the text.
     // (Not for the size box or "More colours…": those inputs have to take the press.)
     $('ttb').addEventListener('pointerdown', (e) => {
@@ -1955,7 +1962,7 @@
       if (e.key === 'Enter') e.target.blur(); // blur fires the change
     });
     $('selX').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); });
-    $('selX').addEventListener('click', () => removeTextBox(false));
+    $('selX').addEventListener('click', () => removeSelected(false));
     $('ttb').addEventListener('click', (e) => {
       const t = e.target.closest('[data-t]')?.dataset.t;
       if (t === 'colormenu') $('ttbPop').hidden = !$('ttbPop').hidden;
@@ -2006,11 +2013,11 @@
     document.addEventListener('keydown', (e) => {
       const typing = e.target instanceof Element && e.target.closest('[data-e], input, textarea, select');
       if (e.key === 'Escape' && selectedId && !typing) select(null);
-      // Delete / Backspace on a selected heading box (not while typing in it) removes it.
+      // Delete / Backspace on a selected item (not while typing in it) removes it, asking first.
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId && !typing && current
-        && current.charts.find((c) => c.id === selectedId)?.type === 'text') {
+        && current.charts.some((c) => c.id === selectedId)) {
         e.preventDefault();
-        removeTextBox(true);
+        removeSelected(true);
       }
     });
     window.addEventListener('hashchange', () => select(null));
