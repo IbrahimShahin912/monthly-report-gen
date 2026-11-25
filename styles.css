@@ -296,10 +296,10 @@ input.tn { font-family: var(--tn), "Faruma", "Noto Sans Thaana", sans-serif; fon
   position: absolute; inset: 162px 64px 64px;
   border-radius: 18px; padding: 8px 48px;
   display: flex; flex-direction: column;
-  /* No visible card (user, 2026-11-25: "remove this card" — it was a glass panel like .rhead). It stays as
-     the invisible layout area the charts and text boxes are placed in; the border keeps its 2px width
-     (transparent) so the inner area and every saved box position are unchanged. */
-  background: none; border: 2px solid transparent;
+  /* Glass, same as .rhead (removed by the user on 2026-11-25, then asked back the same day). */
+  background: rgba(255, 255, 255, .3); border: 2px solid rgba(255, 255, 255, .75);
+  box-shadow: 0 14px 40px rgba(30, 77, 89, .12), inset 0 1px 0 rgba(255, 255, 255, .9);
+  -webkit-backdrop-filter: blur(18px) saturate(140%); backdrop-filter: blur(18px) saturate(140%);
 }
 /* Placeholder for a chart that has no labels or numbers yet. Preview only — renderReport(true)
    leaves these out for the PNG export. */
