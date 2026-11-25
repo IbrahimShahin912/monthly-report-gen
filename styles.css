@@ -70,14 +70,16 @@ input.tn { font-family: var(--tn), "Faruma", "Noto Sans Thaana", sans-serif; fon
 .warn { color: #9a3412; background: #fff7ed; border: 1px solid #fed7aa; padding: 8px 10px; border-radius: 8px; font-size: 12px; margin: 8px 0 18px; }
 
 /* Room on the right for the icon column beside the page. */
-.stage { position: relative; overflow: auto; display: grid; place-items: safe center; padding: 24px 74px 24px 24px; }
+.stage { position: relative; overflow: auto; display: grid; place-items: safe center; padding: 24px 150px 24px 24px; }
 
 /* Icon-only actions (user request: no words), stacked in a column just off the page's top-right
    corner, so they stay beside the page whatever the zoom. */
 .stage-tools {
   position: absolute; top: 0; left: 100%; margin-left: 12px; z-index: 2;
-  display: flex; flex-direction: column; gap: 8px;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
 }
+/* Worded buttons in the same column ("Add heading", "Download"). */
+.tool.text-tool { width: auto; min-width: 120px; padding: 0 16px; font-size: 14px; font-weight: 600; white-space: nowrap; }
 .tool {
   width: 38px; height: 38px; display: grid; place-items: center; cursor: pointer;
   border: 1px solid var(--line); border-radius: 10px; background: #fff; color: var(--accent);
@@ -198,6 +200,17 @@ input.tn { font-family: var(--tn), "Faruma", "Noto Sans Thaana", sans-serif; fon
   .topbar-side { border-right: 0; align-items: center; }
   .topbar-main { padding: 0 12px; }
 }
+/*
+ * Chart sidebar HIDDEN (user, 2026-11-25: "hide it from view, the code remains, I will tell you when
+ * to put it back"). To bring it back, delete this block — the sidebar markup, CSS and JS are untouched.
+ */
+.pagelist, .topbar-side { display: none; }
+/* Editor panel HIDDEN too (user, 2026-11-25: "hide this part too"). Delete this line and the .app rule to restore. */
+.panel { display: none; }
+/* Header month + year pill HIDDEN (user, 2026-11-25: "remove the date") — also leaves the PNG. Delete to restore. */
+.rhead .rh-date { display: none; }
+.app { grid-template-columns: 1fr; }
+.topbar { grid-template-columns: 1fr; }
 
 /* ---------- Report canvas (1200 × 1500) ---------- */
 .report {
@@ -233,8 +246,12 @@ input.tn { font-family: var(--tn), "Faruma", "Noto Sans Thaana", sans-serif; fon
      (~30%), as the user asked. The icons keep their screen size, so this only lines up at that zoom. */
   position: absolute; top: 46px; left: 64px; right: 64px; height: 96px;
   display: flex; align-items: center; gap: 20px; padding: 0 28px;
-  background: #fff; border: 2px solid var(--brand-200); border-radius: 18px;
-  border-bottom: 6px solid var(--brand-700);
+  border-radius: 18px;
+  /* Glass (user, 2026-11-25: "make the cards transparent. glass like"); shared with .card below. */
+  background: rgba(255, 255, 255, .3); border: 2px solid rgba(255, 255, 255, .75);
+  border-bottom: 6px solid rgba(47, 110, 126, .55);
+  box-shadow: 0 14px 40px rgba(30, 77, 89, .12), inset 0 1px 0 rgba(255, 255, 255, .9);
+  -webkit-backdrop-filter: blur(18px) saturate(140%); backdrop-filter: blur(18px) saturate(140%);
 }
 /* Crop the logo file's white margin to the mark. Measured from the pixels (327×430): the mark spans
    x 40–287 (its lower tip reaches x 287 at y 333), y 51–352. The frame's rounded corner runs from
@@ -254,15 +271,35 @@ input.tn { font-family: var(--tn), "Faruma", "Noto Sans Thaana", sans-serif; fon
   padding: 8px 22px; border-radius: 99px; background: var(--brand-100); color: var(--brand-900);
   font-size: 26px; line-height: 1.3; white-space: nowrap;
 }
-.rh-date .num { font-size: 24px; font-weight: 600; }
-.rh-date[role="button"] { cursor: pointer; }
+.rh-date .num { font-size: 24px; font-weight: 600; }.rh-date[role="button"] { cursor: pointer; }
 .rh-date[role="button"]:hover { background: #c8e3ea; }
 .rh-cal { width: 24px; height: 24px; fill: none; stroke: var(--brand-700); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+/* Footer: the council's contacts, a glass bar matching the header (same width, glass, teal bottom edge),
+   in the bottom margin under the card area (card ends at 1436; this sits at 1442–1488). */
+.rfoot {
+  position: absolute; left: 64px; right: 64px; bottom: 12px; height: 46px;
+  display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 0 22px;
+  font-family: "Poppins", sans-serif; font-size: 17px; color: var(--brand-900); white-space: nowrap;
+  border-radius: 14px; background: rgba(255, 255, 255, .3); border: 2px solid rgba(255, 255, 255, .75);
+  border-bottom: 4px solid rgba(47, 110, 126, .55);
+  box-shadow: 0 10px 28px rgba(30, 77, 89, .1), inset 0 1px 0 rgba(255, 255, 255, .9);
+  -webkit-backdrop-filter: blur(18px) saturate(140%); backdrop-filter: blur(18px) saturate(140%);
+}
+.rf-item { display: flex; align-items: center; gap: 10px; }
+.rf-icon {
+  flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--brand-700); color: #fff;
+}
+.rf-icon svg { width: 16px; height: 16px; }
 .card {
   /* 64px page margins at the sides and bottom; the top leaves room for the header (46 + 96 + 20). */
   position: absolute; inset: 162px 64px 64px;
-  border: 2px solid var(--brand-200); border-radius: 18px; padding: 8px 48px;
-  display: flex; flex-direction: column; background: rgba(255, 255, 255, .75);
+  border-radius: 18px; padding: 8px 48px;
+  display: flex; flex-direction: column;
+  /* No visible card (user, 2026-11-25: "remove this card" — it was a glass panel like .rhead). It stays as
+     the invisible layout area the charts and text boxes are placed in; the border keeps its 2px width
+     (transparent) so the inner area and every saved box position are unchanged. */
+  background: none; border: 2px solid transparent;
 }
 /* Placeholder for a chart that has no labels or numbers yet. Preview only — renderReport(true)
    leaves these out for the PNG export. */
@@ -297,6 +334,21 @@ input.tn { font-family: var(--tn), "Faruma", "Noto Sans Thaana", sans-serif; fon
    overflow shows up in card.scrollHeight for fitCard() to detect. */
 .sec { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: center; gap: calc(32px * var(--k)); padding: calc(12px * var(--k)) 0; }
 .sec-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; }
+/* Heading text box (type 'text'): the text fills its box — fitBox picks --k — and wraps. */
+/* The text fills its whole box (top-aligned, like Word), so the editing field matches the frame. */
+.tsec { justify-content: flex-start; gap: 0; padding: 0; }
+.tsec > .tbox { flex: 1 1 auto; }
+/* In automatic layout a heading keeps its own height (charts share the rest), so it sits at the top. */
+.card:not(.free) > .tsec { flex: none; }
+.tbox { font-size: calc(46px * var(--k)); line-height: 1.35; color: var(--brand-900); text-align: right; overflow-wrap: anywhere; }
+/* "Add text" boxes: smaller, lighter body text (same box behaviour). */
+.tbox.tbox-body { font-size: calc(28px * var(--k)); line-height: 1.5; color: var(--brand-700); }
+/* "Add list" boxes: bullet points (on the right for Dhivehi — padding-inline-start follows the RTL box). */
+.tbox-list ul, .tbox-list ol { margin: 0; padding-inline-start: 1.3em; }
+.tbox-list li { margin: .15em 0; padding-inline-start: .2em; }
+.tbox-list li::marker { color: var(--brand-600); }
+/* A new list already shows its first bullet, so it needs no "…" hint. */
+.report .tbox-list[contenteditable].is-empty::after { content: none; }
 .sec-title { font-size: calc(34px * var(--k)); font-weight: 700; line-height: 1.35; color: var(--brand-900); }
 .sec-total { display: flex; align-items: baseline; gap: calc(14px * var(--k)); }
 .sec-total .tn { font-size: calc(22px * var(--k)); color: var(--brand-600); }
@@ -471,6 +523,19 @@ input.tn { font-family: var(--tn), "Faruma", "Noto Sans Thaana", sans-serif; fon
 .prog-stat .lbl { font-size: calc(26px * var(--k)); line-height: 1.45; color: var(--brand-700); }
 .prog-val { font-size: calc(46px * var(--k)); font-weight: 700; line-height: 1.1; letter-spacing: -.01em; color: var(--brand-900); }
 
+/* Glass chart surfaces (user, 2026-11-25: cards transparent, glass like — "them too"), matching the
+   header and page card. A bit more white than the page card so text stays easy to read. Each chart's
+   coloured edge (tile right, grid-card top) is kept; the number chips stay tinted. */
+.tile, .nrow, .ncard, .llist, .nstat, .prog-stat {
+  background: rgba(255, 255, 255, .42); border-color: rgba(255, 255, 255, .8);
+  box-shadow: 0 6px 18px rgba(30, 77, 89, .08), inset 0 1px 0 rgba(255, 255, 255, .9);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+}
+.tile { border-right-color: var(--c); }
+.ncard { border-top-color: var(--c); }
+.nstat { background: color-mix(in srgb, var(--c) 10%, rgba(255, 255, 255, .4)); }
+.lrow + .lrow { border-top-color: rgba(255, 255, 255, .75); }
+
 /* ---------- Move/resize frame and alignment grid (preview only) ---------- */
 /* Sizes are divided by --vs (the preview zoom) so the frame, handles and grid look the same at any zoom. */
 .sel {
@@ -515,6 +580,83 @@ body.dragging-chart, body.dragging-chart * { user-select: none !important; curso
 .sel .h-e { left: calc(100% + 4px / var(--vs)); top: 50%; cursor: ew-resize; }
 .sel .h-w { left: calc(-4px / var(--vs)); top: 50%; cursor: ew-resize; }
 .sel.dragging .handle { background: #7d4cdb; border-color: #7d4cdb; }
+/* Mini formatting toolbar above a selected heading/text box (preview only; inside #sel). Drawn at
+   screen size: scaled by 1 / zoom from its bottom-right corner, 12 screen px above the frame. Anchored
+   right (the text is RTL) so it grows leftwards, away from the button column beside the page. */
+.ttb {
+  position: absolute; right: 0; bottom: 100%; pointer-events: auto; z-index: 1;
+  transform-origin: right bottom; transform: translateY(calc(-12px / var(--vs))) scale(calc(1 / var(--vs)));
+  display: flex; align-items: center; gap: 2px; padding: 4px; white-space: nowrap;
+  background: #fff; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 6px 20px rgba(16, 24, 40, .16);
+}
+.sel.dragging .ttb { display: none; }
+.ttb button {
+  min-width: 30px; height: 30px; padding: 0 6px; display: grid; place-items: center; cursor: pointer;
+  border: 0; border-radius: 7px; background: none; color: var(--ink); font-size: 14px;
+}
+.ttb button:hover { background: #eef4f6; }
+.ttb button.on { background: var(--accent); color: #fff; }
+.ttb svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+.ttb-bold { font-weight: 800; }
+/* Font size: type any size, or pick from the list (datalist) — like Word's size box. */
+.ttb-size {
+  width: 84px; height: 30px; padding: 0 2px 0 8px; font-size: 14px; color: var(--ink); text-align: center;
+  border: 1px solid var(--line); border-radius: 7px; background: #fff;
+}
+.ttb-size:focus { outline: 0; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(63, 129, 147, .18); }
+/* Remove ✕: a red round button just outside the selected text box's top-right corner (screen-sized). */
+.sel-x {
+  position: absolute; left: calc(100% + 16px / var(--vs)); top: calc(-13px / var(--vs));
+  width: 26px; height: 26px; padding: 0; transform-origin: 0 0; transform: scale(calc(1 / var(--vs)));
+  display: grid; place-items: center; pointer-events: auto; cursor: pointer;
+  border: 2px solid #fff; border-radius: 50%; background: #b42318; color: #fff; font-size: 13px; line-height: 1;
+  box-shadow: 0 2px 8px rgba(16, 24, 40, .25);
+}
+.sel-x:hover { background: #8f1b12; }
+.sel.dragging .sel-x { display: none; }
+/* Heading/text boxes move by their border, like Word: four grab strips along the frame (screen-sized,
+   from 2px inside the box to 14px outside), move cursor; inside the box is for selecting text. */
+.sel-edge { position: absolute; pointer-events: auto; cursor: move; }
+.sel-edge.edge-top    { left: calc(-14px / var(--vs)); right: calc(-14px / var(--vs)); top: calc(-14px / var(--vs)); height: calc(16px / var(--vs)); }
+.sel-edge.edge-bottom { left: calc(-14px / var(--vs)); right: calc(-14px / var(--vs)); bottom: calc(-14px / var(--vs)); height: calc(16px / var(--vs)); }
+.sel-edge.edge-left   { top: calc(-14px / var(--vs)); bottom: calc(-14px / var(--vs)); left: calc(-14px / var(--vs)); width: calc(16px / var(--vs)); }
+.sel-edge.edge-right  { top: calc(-14px / var(--vs)); bottom: calc(-14px / var(--vs)); right: calc(-14px / var(--vs)); width: calc(16px / var(--vs)); }
+/* Hovering the border shows it can be grabbed. */
+.sel:has(.sel-edge:hover) { outline-width: calc(3.5px / var(--vs)); }
+.report .card > section.tsec { cursor: text; }
+.ttb-sep { width: 1px; height: 20px; margin: 0 4px; background: var(--line); }
+/* Font colour button: an "A" over a bar in the current colour, then a chevron that opens the menu. */
+.ttb-colorwrap { position: relative; }
+.ttb .ttb-color { display: flex; align-items: center; gap: 2px; padding: 0 4px 0 8px; }
+.ttb-a { display: flex; flex-direction: column; align-items: center; font-size: 15px; font-weight: 700; line-height: 1; }
+.ttb-a i { display: block; width: 18px; height: 4px; margin-top: 2px; border-radius: 1px; box-shadow: inset 0 0 0 1px rgba(16, 24, 40, .15); }
+.ttb .ttb-chev { width: 14px; height: 14px; }
+/* Word-style colour menu under the toolbar (right-aligned, like the toolbar). */
+.ttb-pop {
+  position: absolute; top: calc(100% + 8px); right: 0; width: 292px; padding: 10px 12px 8px;
+  background: #fff; border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 32px rgba(16, 24, 40, .2);
+  white-space: normal; cursor: default;
+}
+.ttb-pop-h { font-size: 13px; font-weight: 700; color: var(--ink); margin: 2px 0 8px; }
+.ttb-pal { display: grid; grid-template-columns: repeat(10, 1fr); gap: 5px 4px; margin-bottom: 10px; }
+.ttb-pal-grid { padding-top: 8px; border-top: 1px solid var(--line); }
+.ttb .ttb-pop button.ttb-sw {
+  min-width: 0; width: 22px; height: 22px; padding: 0; border-radius: 50%; justify-self: center;
+  background: var(--sw); box-shadow: inset 0 0 0 1px rgba(16, 24, 40, .22);
+}
+.ttb .ttb-pop button.ttb-sw:hover { background: var(--sw); transform: scale(1.15); }
+.ttb .ttb-pop button.ttb-sw.on { background: var(--sw); box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--accent); }
+.ttb .ttb-pop .ttb-auto { width: 100%; justify-content: start; display: flex; gap: 10px; margin-bottom: 8px; font-size: 13px; }
+.ttb .ttb-pop .ttb-auto.on { background: #eef4f6; color: var(--ink); }
+.ttb-dot { width: 18px; height: 18px; border-radius: 50%; background: #1e4d59; box-shadow: inset 0 0 0 1px rgba(16, 24, 40, .22); }
+.ttb-more {
+  display: flex; align-items: center; gap: 10px; padding: 8px 6px 4px; margin-top: 2px;
+  border-top: 1px solid var(--line); font-size: 13px; color: var(--ink); cursor: pointer; position: relative;
+}
+.ttb-more:hover { color: var(--accent); }
+.ttb-wheel { width: 18px; height: 18px; border-radius: 50%; background: conic-gradient(#f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00); }
+/* The real colour input covers the row, invisible, so a click opens the browser's picker. */
+.ttb-more input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; border: 0; padding: 0; }
 
 
 /* ---------- Panel: one card per chart ---------- */

@@ -14,6 +14,12 @@
 
   // Council brand palette, sampled from the logo. Chart rows take colours by name (library `colors`).
   const COLORS = { deep: '#2f6e7e', mid: '#62a3bf', light: '#a9d3df', ink: '#1e4d59', teal: '#3f8193', pale: '#d9ecf1' };
+  // Text colours for heading/text boxes (the mini toolbar's swatches): the brand palette plus near-black
+  // and white. Stored by name, so only these can ever be used.
+  const TEXT_COLORS = { ink: '#1e4d59', deep: '#2f6e7e', teal: '#3f8193', mid: '#62a3bf', dark: '#17323a', white: '#ffffff' };
+  // Since the Word-style colour menu (2026-11-25) a text box's colour is any #rrggbb; the names above are
+  // still read (boxes saved before it). Returns '' for anything else.
+  const textColor = (v) => (/^#[0-9a-f]{6}$/i.test(String(v)) ? String(v).toLowerCase() : (TEXT_COLORS[v] || ''));
   const DEFAULT_PALETTE = ['deep', 'teal', 'mid', 'light'];
 
 
@@ -25,6 +31,7 @@
     cards: 'Number cards',
     grid: 'Card grid',
     list: 'Number list',
+    text: 'Heading',
   };
   const isMoney = (chart) => chart.type === 'money' || chart.type === 'progress';
 
@@ -36,7 +43,11 @@
    * nothing jumps. A chart's content scales (--k) to fill its box.
    */
   const BOX_MIN_W = 120;
-  const BOX_MIN_H = 80;
+  const TEXT_SIZE_MIN = 4;
+  const TEXT_SIZE_MAX = 400;
+  // A−/A+ step through these, like Word's size list (page px; the PNG is 1.365× this).
+  const TEXT_SIZES = [8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 32, 36, 40, 44, 48, 54, 60, 66, 72, 80, 88, 96, 108, 120, 144, 168, 200, 240, 288, 340, 400];
+  const BOX_MIN_H = 27; // one grid step (was 80; small text boxes need less — charts can't shrink past their content anyway)
   // Snapping grid, page px. The card's inner width (972) is 36 steps, so halves and thirds land on it.
   const GRID = 27;
   function boxOf(box) {
@@ -193,9 +204,76 @@
     if (typeof chart?.subheading === 'string') out.subheading = chart.subheading;
     if (Array.isArray(chart?.colors)) out.colors = chart.colors.map(String);
     if (typeof chart?.src === 'string') out.src = chart.src;
+    // Heading/text box formatting (mini toolbar).
+    if (textColor(chart?.color)) out.color = textColor(chart.color);
+    if (chart?.bold === true) out.bold = true;
+    if (chart?.align === 'center' || chart?.align === 'left') out.align = chart.align;
+    const fs = Number(chart?.fontSize);
+    if (fs >= TEXT_SIZE_MIN && fs <= TEXT_SIZE_MAX) out.fontSize = Math.round(fs * 10) / 10;
+    // Formatted text (per-word colour/bold/size, line breaks). Cleaned again whenever it is drawn.
+    if (typeof chart?.html === 'string' && chart.html.length <= 50000) out.html = chart.html;
     withBox(out, chart?.box);
     return out;
   }
+
+  /*
+   * Formatted text in heading/text boxes (2026-11-25, user: colour a selected word, not the whole box;
+   * Shift/Ctrl + Enter for a new line). The box is contenteditable="true", and what it holds is rebuilt by
+   * richHTML() keeping only: text, <br>, and <span style> with colour, bold/normal weight, px size, italic,
+   * underline. Block elements (pasted <div>/<p>) become line breaks; everything else is reduced to its
+   * text. `digits` wraps digit runs in .num (Poppins) for drawing; existing .num spans are unwrapped first.
+   */
+  const SAFE_COLOR = /^(#[0-9a-f]{3,8}|rgba?\(\s*[\d.]+%?\s*,\s*[\d.]+%?\s*,\s*[\d.]+%?\s*(,\s*[\d.]+\s*)?\))$/i;
+  function richHTML(root, digits) {
+    let out = '';
+    root.childNodes.forEach((n) => {
+      if (n.nodeType === 3) {
+        out += digits ? mixed(n.data) : esc(n.data);
+        return;
+      }
+      if (n.nodeType !== 1) return;
+      const tag = n.tagName;
+      if (tag === 'BR') {
+        out += '<br>';
+        return;
+      }
+      // Bullet lists ("Add list" boxes): the list tags themselves, no attributes.
+      if (tag === 'UL' || tag === 'OL' || tag === 'LI') {
+        const t = tag.toLowerCase();
+        out += `<${t}>${richHTML(n, digits)}</${t}>`;
+        return;
+      }
+      if (['SCRIPT', 'STYLE', 'TEMPLATE', 'IFRAME', 'OBJECT', 'SVG', 'IMG'].includes(tag)) return;
+      const inner = richHTML(n, digits);
+      const st = n.style || {};
+      const css = [];
+      const color = (st.color || (tag === 'FONT' ? n.getAttribute('color') || '' : '')).trim();
+      if (color && SAFE_COLOR.test(color)) css.push(`color:${color}`);
+      const fw = st.fontWeight;
+      if (tag === 'B' || tag === 'STRONG' || fw === 'bold' || Number(fw) >= 600) css.push('font-weight:700');
+      else if (fw === 'normal' || (fw && Number(fw) <= 500)) css.push('font-weight:400');
+      const px = parseFloat(st.fontSize);
+      if (/px$/.test(st.fontSize || '') && px >= TEXT_SIZE_MIN && px <= TEXT_SIZE_MAX) css.push(`font-size:${Math.round(px * 10) / 10}px`);
+      if (tag === 'I' || tag === 'EM' || st.fontStyle === 'italic') css.push('font-style:italic');
+      if (tag === 'U' || /underline/.test(st.textDecorationLine || st.textDecoration || '')) css.push('text-decoration:underline');
+      const body = css.length ? `<span style="${css.join(';')}">${inner}</span>` : inner;
+      out += (tag === 'DIV' || tag === 'P') && out ? `<br>${body}` : body;
+    });
+    return out;
+  }
+  const parseRich = (html) => {
+    const tpl = document.createElement('template'); // inert: nothing in it runs or loads
+    tpl.innerHTML = html;
+    return tpl.content;
+  };
+  const renderRich = (html) => richHTML(parseRich(html), true);
+  // Box-wide formatting from the toolbar: drop that property from every span, so the whole box follows it.
+  function stripRich(html, prop) {
+    const root = parseRich(html);
+    root.querySelectorAll('[style]').forEach((el) => el.style.removeProperty(prop));
+    return richHTML(root, false);
+  }
+  const plainOf = (node) => (node.innerText || node.textContent || '').replace(/ /g, ' ');
 
   const sanitizePage = (page) => ({
     id: String(page?.id || uid()),
@@ -313,6 +391,26 @@
         <span>${mixed(periodText(state.period))}</span>
       </div>
     </header>`;
+
+  /*
+   * Report footer (2026-11-25, user request: "add this footer but in the current style"): the council's
+   * contact line from the user's image — phone, email, Facebook page — as a glass bar matching the header,
+   * in the page's bottom margin. Hardcoded and not editable, like the header. Latin text, so LTR + Poppins.
+   */
+  const COUNCIL_CONTACTS = [
+    { icon: 'phone', text: '+960 6500019' },
+    { icon: 'mail', text: 'info@hadhidhoo.gov.mv' },
+    { icon: 'facebook', text: 'Secretariat of Dhidhdhoo Council, North Thiladhunmathi' },
+  ];
+  const FOOT_ICONS = {
+    phone: '<path d="M7.2 3.5h2.6l1.3 3.4-1.7 1.2a10.5 10.5 0 0 0 5.5 5.5l1.2-1.7 3.4 1.3v2.6a2 2 0 0 1-2.2 2A15.6 15.6 0 0 1 5.2 5.7a2 2 0 0 1 2-2.2z" fill="currentColor"/>',
+    mail: '<rect x="3.5" y="6" width="17" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M4 7l8 6 8-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>',
+    facebook: '<path d="M13.4 20v-6.6h2.3l.4-2.7h-2.7V9c0-.8.3-1.3 1.4-1.3h1.4V5.3a18 18 0 0 0-2.1-.1c-2.1 0-3.5 1.3-3.5 3.6v1.9H8.3v2.7h2.3V20z" fill="currentColor"/>',
+  };
+  const footerHTML = () => `
+    <footer class="rfoot" dir="ltr">${COUNCIL_CONTACTS.map((c) => `
+      <span class="rf-item"><span class="rf-icon"><svg viewBox="0 0 24 24" aria-hidden="true">${FOOT_ICONS[c.icon]}</svg></span>${esc(c.text)}</span>`).join('')}
+    </footer>`;
 
   /*
    * Editable text in the preview. Every field the user can type into carries data-e with its address
@@ -509,7 +607,37 @@
           </div>` : ''}
         </section>`;
     },
+
+    // A heading text box (2026-11-25, user request): just its text, typed on the page. It moves and resizes
+    // like a chart; the text scales to fill its box (fitBox) and wraps. Left out of the PNG when empty.
+    text: (chart, c) => {
+      const has = chart.heading.trim();
+      if (!has && !editMode) return '';
+      return `
+        <section class="sec tsec" dir="rtl">
+          <div class="tbox tn${smallText(chart) ? ' tbox-body' : ''}${chart.style === 'list' ? ' tbox-list' : ''}${has ? '' : ' is-empty'}"${textStyle(chart)}${ed(`${c}:heading`)}>${typeof chart.html === 'string' ? renderRich(chart.html) : mixed(chart.heading)}</div>
+        </section>`;
+    },
   };
+
+  /*
+   * Heading/text box font size (2026-11-25, user: "it should be like in MS Word"): an explicit size in page
+   * px, any value from TEXT_SIZE_MIN to TEXT_SIZE_MAX, set from the toolbar. It no longer follows the box:
+   * resizing the box changes its shape and where the text wraps, and the box grows to fit its text.
+   */
+  // "Add text" (body) and "Add list" boxes use the smaller body text; headings the large one.
+  const smallText = (chart) => chart.style === 'body' || chart.style === 'list';
+  const textSize = (chart) => chart.fontSize || (smallText(chart) ? 28 : 46);
+
+  // Inline style for a heading/text box's toolbar formatting (size, colour, bold, alignment).
+  function textStyle(chart) {
+    // (No fontSize = a box from before sizes existed: the CSS base size applies until layoutText() sets one.)
+    const css = chart.fontSize ? [`font-size:${chart.fontSize}px`] : [];
+    if (textColor(chart.color)) css.push(`color:${textColor(chart.color)}`);
+    if (chart.bold) css.push('font-weight:700');
+    if (chart.align) css.push(`text-align:${chart.align}`);
+    return css.length ? ` style="${css.join(';')}"` : '';
+  }
 
   // Picks the largest chart sizing (CSS var --k) that fits the card: light pages grow up to 1.3× to fill it,
   // busy pages shrink. Returns false if the charts still overflow at the smallest step.
@@ -631,6 +759,10 @@
       sec.style.left = `${inner.l + b.x}px`;
       sec.style.top = `${inner.t + b.y}px`;
       sec.style.width = `${b.w}px`;
+      if (chart.type === 'text') {
+        if (!layoutText(sec, chart, inner)) ok = false;
+        return;
+      }
       const key = `${b.w}|${b.h}`;
       if (sec.dataset.fit !== key) {
         sec.dataset.fit = key;
@@ -639,6 +771,36 @@
       if (sec.dataset.fitOk === '0' || b.x + b.w > inner.w + 1 || b.y + b.h > inner.h + 1) ok = false;
     });
     return ok;
+  }
+
+  /*
+   * A heading/text box on a free card: the text keeps its own font size (no fitBox), and the box grows
+   * taller when the text needs more room (typing, a bigger size, a narrower box), up to the card's bottom.
+   * Returns false if the text still doesn't fit. A box saved before font sizes existed (text scaled to
+   * its box) gets the size it was showing, so it looks the same.
+   */
+  function layoutText(sec, chart, inner) {
+    const tbox = sec.querySelector('.tbox');
+    if (!chart.fontSize && tbox) {
+      fitBox(sec, chart.box.h);
+      const base = smallText(chart) ? 28 : 46;
+      chart.fontSize = Math.min(TEXT_SIZE_MAX, Math.max(TEXT_SIZE_MIN, Math.round(base * parseFloat(sec.style.getPropertyValue('--k')))));
+      tbox.style.fontSize = `${chart.fontSize}px`;
+      layoutAdded = true;
+    }
+    sec.style.removeProperty('--k');
+    sec.style.height = 'auto';
+    const need = Math.ceil(sec.offsetHeight);
+    const b = chart.box;
+    if (need > b.h) {
+      const h = Math.min(need, Math.floor(inner.h - b.y));
+      if (h > b.h) {
+        withBox(chart, { ...b, h });
+        layoutAdded = true;
+      }
+    }
+    sec.style.height = `${chart.box.h}px`;
+    return need <= chart.box.h + 0.5 && b.x + b.w <= inner.w + 1 && chart.box.y + chart.box.h <= inner.h + 1;
   }
 
   // Width counts too: at a large --kp, wide numbers (152,510,000.00 in the progress panels) pushed a chart
@@ -678,7 +840,7 @@
     const drawn = charts
       .map((chart, c) => ({ c, html: (CHARTS[chart.type] || CHARTS.cards)(chart, c) || (forExport ? '' : placeholderHTML(chart)) }))
       .filter((c) => c.html);
-    el.innerHTML = `${headerHTML()}<div class="card">${drawn.map((c) => c.html).join('<div class="divider"></div>')}</div>`;
+    el.innerHTML = `${headerHTML()}<div class="card">${drawn.map((c) => c.html).join('<div class="divider"></div>')}</div>${footerHTML()}`;
     // data-c ties each section to its chart (for the box and for the resize handles).
     el.querySelectorAll('.card > section').forEach((sec, i) => {
       sec.dataset.c = drawn[i].c;
@@ -686,7 +848,8 @@
     if (!forExport) {
       // plaintext-only keeps pasted formatting and stray <div>s out of the report text.
       el.querySelectorAll('[data-e]').forEach((node) => {
-        node.setAttribute('contenteditable', 'plaintext-only');
+        // Heading/text boxes hold formatted text; every other field stays plain.
+        node.setAttribute('contenteditable', node.classList.contains('tbox') ? 'true' : 'plaintext-only');
         node.setAttribute('spellcheck', 'false');
       });
     }
@@ -873,6 +1036,48 @@
     groups[groups.length - 1]?.scrollIntoView({ block: 'nearest' });
   }
 
+  // The "T" icon beside the page: a new, empty heading box, selected with the caret in it.
+  // On a page arranged by hand it gets a heading-sized box (in free space at the bottom, else at the
+  // top, on top of the charts); on an automatic page it goes after the text boxes already at the top.
+  // style 'body' ("Add text"): the same box with smaller, lighter text and a shorter default box.
+  // style 'list' ("Add list", 2026-11-25): body text as bullet points, starting with one empty bullet.
+  function addHeading(style) {
+    if (!current) return;
+    const chart = { id: uid(), type: 'text', heading: '', rows: [] };
+    if (style === 'body' || style === 'list') chart.style = style;
+    if (style === 'list') chart.html = '<ul><li><br></li></ul>';
+    chart.fontSize = textSize(chart); // 46 for a heading, 28 for text and lists
+    const card = cardEl();
+    if (card && current.charts.some((c) => c.box)) {
+      const inner = cardInner(card);
+      const h = (style ? 3 : 4) * GRID;
+      const bottom = Math.max(0, ...current.charts.filter((c) => c.box).map((c) => c.box.y + c.box.h));
+      const y = snap(bottom + GRID);
+      withBox(chart, { x: 0, y: y + h <= inner.h ? y : 0, w: inner.w, h });
+      current.charts.push(chart);
+    } else {
+      // After any heading/text boxes already at the top, so they stack in the order they were added.
+      let at = 0;
+      while (current.charts[at]?.type === 'text') at += 1;
+      current.charts.splice(at, 0, chart);
+    }
+    buildEditor();
+    commit();
+    select(chart.id);
+    const sec = document.querySelector(`#report .card > section[data-c="${current.charts.indexOf(chart)}"]`);
+    const tbox = sec?.querySelector('.tbox');
+    tbox?.focus();
+    // A list: put the caret in its first bullet.
+    const li = tbox?.querySelector('li');
+    if (li) {
+      const r = document.createRange();
+      r.setStart(li, 0);
+      r.collapse(true);
+      getSelection().removeAllRanges();
+      getSelection().addRange(r);
+    }
+  }
+
   function moveChart(from, to) {
     if (!current || to < 0 || to >= current.charts.length) return;
     const [chart] = current.charts.splice(from, 1);
@@ -1037,6 +1242,9 @@
 
     // The icon buttons over the preview do the same two things.
     $('newPageTop').addEventListener('click', PAGE_OPS.newPage);
+    $('addHeadingTop').addEventListener('click', () => addHeading());
+    $('addTextTop').addEventListener('click', () => addHeading('body'));
+    $('addListTop').addEventListener('click', () => addHeading('list'));
     $('downloadTop').addEventListener('click', downloadPng);
     $('deletePageTop').addEventListener('click', PAGE_OPS.deletePage);
 
@@ -1094,12 +1302,18 @@
     return at.row ? at.row.label : String(at.chart[at.key] ?? '');
   };
 
+  let relisting = false;
   function bindPreview() {
     const report = $('report');
 
     report.addEventListener('focusin', (e) => {
       const node = e.target.closest('[data-e]');
       if (!node) return;
+      // Heading/text boxes keep their formatting while edited (no swap to plain text).
+      if (node.classList.contains('tbox')) {
+        node.classList.add('is-editing');
+        return;
+      }
       // Swap to the raw text: labels carry .num spans for the RTL digit fix, numbers are formatted.
       const raw = rawText(node, node.dataset.e);
       if (node.textContent !== raw) node.textContent = raw;
@@ -1111,10 +1325,30 @@
       if (!node) return;
       const at = fieldAt(node.dataset.e);
       if (!at) return;
+      if (node.classList.contains('tbox')) {
+        // A list box emptied and typed into again: turn the line back into a bullet. (The command fires
+        // its own input event, which saves; `relisting` keeps it from looping.)
+        if (node.classList.contains('tbox-list') && !node.querySelector('li') && node.textContent.trim() && !relisting) {
+          relisting = true;
+          document.execCommand('insertUnorderedList');
+          relisting = false;
+          return;
+        }
+        // Formatted text: keep the cleaned markup, and the plain text as the heading.
+        at.chart.html = richHTML(node, false);
+        at.chart.heading = plainOf(node);
+        node.classList.toggle('is-empty', !at.chart.heading.trim());
+        // Grow the box (and its frame) as lines are added — layoutCard() moves no HTML, so the caret stays.
+        layoutCard(cardEl());
+        placeSelection();
+        save();
+        return;
+      }
       const text = node.textContent;
       if (at.key === 'value') at.row.value = parseFloat(text.replace(/[^\d.-]/g, '')) || 0;
       else if (at.row) at.row.label = oneSpace(text);
       else at.chart[at.key] = oneSpace(text);
+      node.classList.toggle('is-empty', at.key !== 'value' && !text.trim()); // the "…" hint goes as you type
       save(); // saved as typed; the redraw waits for blur
     });
 
@@ -1146,7 +1380,17 @@
     report.addEventListener('keydown', (e) => {
       const node = e.target.closest('[data-e]');
       if (!node) return;
-      if (e.key === 'Enter') {
+      if (e.key === 'Enter' && !e.shiftKey && node.classList.contains('tbox-list')) {
+        // In a list box Enter adds a bullet, as in Word (the browser's own list editing; Enter on an
+        // empty last bullet leaves the list). Shift + Enter is a new line inside the bullet, below.
+        return;
+      }
+      if (e.key === 'Enter' && e.shiftKey && node.classList.contains('tbox')) {
+        // Shift + Enter: a new line in a heading/text box (the user tried Ctrl + Enter and switched back).
+        // Enter alone finishes editing.
+        e.preventDefault();
+        document.execCommand('insertLineBreak');
+      } else if (e.key === 'Enter') {
         e.preventDefault();
         node.blur();
       } else if (e.key === 'Escape') {
@@ -1239,9 +1483,9 @@
     if (location.protocol === 'file:' && !confirm('This page was opened as a file, so the downloaded PNG may not use the Faruma font.\n\nFor a correct image, open the app through serve.py (http://localhost:5173) or its website.\n\nDownload anyway?')) return;
     // The icon beside the page is the only export control, so it shows the busy state.
     const btn = $('downloadTop');
-    const label = btn.title;
+    const label = btn.textContent;
     btn.disabled = true;
-    btn.title = 'Rendering…';
+    btn.textContent = 'Rendering…';
     try {
       await document.fonts.load('32px "Faruma"', 'ދިވެހި');
       await document.fonts.ready;
@@ -1274,7 +1518,7 @@
       alert(`Could not create the PNG: ${why}`);
     } finally {
       btn.disabled = false;
-      btn.title = label;
+      btn.textContent = label;
       renderReport(); // bring the empty-chart placeholders back for editing
     }
   }
@@ -1380,6 +1624,220 @@
     });
     grid.hidden = false;
     selObserver?.observe(sec);
+    syncToolbar(sec);
+  }
+
+  /*
+   * Mini formatting toolbar (2026-11-25, user request): floats above a selected heading/text box, inside
+   * #sel (so it is never exported) and drawn at screen size whatever the zoom. Size is Word-like: type
+   * any size (TEXT_SIZE_MIN–MAX) or pick one from the list, and A−/A+ step through TEXT_SIZES.
+   */
+  const ALIGN_ICONS = {
+    right: '<path d="M4 6h16M9 10h11M6 14h14M11 18h9"/>',
+    center: '<path d="M4 6h16M7 10h10M5 14h14M8 18h8"/>',
+    left: '<path d="M4 6h16M4 10h11M4 14h14M4 18h9"/>',
+  };
+  const toolbarHTML = () => `
+    <div class="ttb" id="ttb" hidden>
+      <button type="button" data-t="size:-" title="Smaller text">A−</button>
+      <input class="ttb-size" id="ttbSize" type="number" min="${TEXT_SIZE_MIN}" max="${TEXT_SIZE_MAX}" step="any" list="ttbSizes" title="Font size — type any size or pick one" aria-label="Font size">
+      <datalist id="ttbSizes">${TEXT_SIZES.map((s) => `<option value="${s}"></option>`).join('')}</datalist>
+      <button type="button" data-t="size:+" title="Bigger text">A+</button>
+      <span class="ttb-sep"></span>
+      <button type="button" class="ttb-bold" data-t="bold" title="Bold">B</button>
+      <span class="ttb-sep"></span>
+      ${['right', 'center', 'left'].map((a) => `<button type="button" data-t="align:${a}" title="Align ${a}"><svg viewBox="0 0 24 24" aria-hidden="true">${ALIGN_ICONS[a]}</svg></button>`).join('')}
+      <span class="ttb-sep"></span>
+      <div class="ttb-colorwrap">
+        <button type="button" class="ttb-color" data-t="colormenu" title="Font colour">
+          <span class="ttb-a">A<i id="ttbColorBar"></i></span>
+          <svg class="ttb-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5"/></svg>
+        </button>
+        ${colorMenuHTML()}
+      </div>
+    </div>`;
+
+  /*
+   * Word-style font colour menu (2026-11-25, user: "include the color spectrum"): Automatic (the box's
+   * default colour), a theme grid — 10 base colours over 5 rows of tints/shades — standard colours, and
+   * More colours (the browser's own colour picker, any colour). The theme row leads with the council teals.
+   */
+  const mixHex = (a, b, t) => `#${[1, 3, 5].map((i) => {
+    const x = parseInt(a.slice(i, i + 2), 16);
+    const y = parseInt(b.slice(i, i + 2), 16);
+    return Math.round(x + (y - x) * t).toString(16).padStart(2, '0');
+  }).join('')}`;
+  const THEME_COLORS = ['#ffffff', '#000000', '#e7e6e6', '#1e4d59', '#2f6e7e', '#3f8193', '#62a3bf', '#ed7d31', '#70ad47', '#7030a0'];
+  const STANDARD_COLORS = ['#c00000', '#ff0000', '#ffc000', '#ffff00', '#92d050', '#00b050', '#00b0f0', '#0070c0', '#002060', '#7030a0'];
+  // Row r (0–4) of the tint/shade grid under base colour c, as in Word.
+  function themeShade(c, r) {
+    if (c === '#ffffff') return mixHex(c, '#000000', [0.05, 0.15, 0.25, 0.35, 0.5][r]);
+    if (c === '#000000') return mixHex(c, '#ffffff', [0.5, 0.35, 0.25, 0.15, 0.05][r]);
+    if (c === '#e7e6e6') return mixHex(c, '#000000', [0.1, 0.25, 0.5, 0.75, 0.9][r]);
+    return r < 3 ? mixHex(c, '#ffffff', [0.8, 0.6, 0.4][r]) : mixHex(c, '#000000', [0.25, 0.5][r - 3]);
+  }
+  const swatch = (hex) => `<button type="button" class="ttb-sw" data-t="color:${hex}" style="--sw:${hex}" title="${hex}"></button>`;
+  const colorMenuHTML = () => `
+    <div class="ttb-pop" id="ttbPop" hidden>
+      <div class="ttb-pop-h">Font colour</div>
+      <button type="button" class="ttb-auto" data-t="color:auto"><span class="ttb-dot"></span>Automatic</button>
+      <div class="ttb-pal">${THEME_COLORS.map(swatch).join('')}</div>
+      <div class="ttb-pal ttb-pal-grid">${[0, 1, 2, 3, 4].map((r) => THEME_COLORS.map((c) => swatch(themeShade(c, r))).join('')).join('')}</div>
+      <div class="ttb-pop-h">Standard colours</div>
+      <div class="ttb-pal">${STANDARD_COLORS.map(swatch).join('')}</div>
+      <label class="ttb-more"><span class="ttb-wheel"></span>More colours…<input type="color" id="ttbCustom"></label>
+    </div>`;
+
+  function syncToolbar(sec) {
+    const bar = $('ttb');
+    if (!bar) return;
+    const chart = current?.charts.find((c) => c.id === selectedId);
+    bar.hidden = !sec || chart?.type !== 'text';
+    $('selX').hidden = bar.hidden;
+    $('selEdges').hidden = bar.hidden;
+    if (bar.hidden) {
+      $('ttbPop').hidden = true;
+      return;
+    }
+    const tbox = sec.querySelector('.tbox');
+    // Don't overwrite the size while it is being typed.
+    if (document.activeElement !== $('ttbSize')) {
+      $('ttbSize').value = chart.fontSize || (tbox ? Math.round(parseFloat(getComputedStyle(tbox).fontSize)) : '');
+    }
+    const on = (t, yes) => bar.querySelector(`[data-t="${t}"]`)?.classList.toggle('on', yes);
+    on('bold', !!chart.bold);
+    ['right', 'center', 'left'].forEach((a) => on(`align:${a}`, (chart.align || 'right') === a));
+    // The A's underline shows the colour in use (the box's default when Automatic).
+    const set = textColor(chart.color);
+    const shown = set || (tbox ? getComputedStyle(tbox).color : '');
+    $('ttbColorBar').style.background = shown;
+    bar.querySelectorAll('.ttb-pop [data-t^="color:"]').forEach((b) => {
+      const v = b.dataset.t.slice(6);
+      b.classList.toggle('on', v === 'auto' ? !set : v === set);
+    });
+    if (set) $('ttbCustom').value = set;
+  }
+
+  /*
+   * Words selected in the box when a toolbar control was pressed (captured on pointerdown, before a size
+   * or colour input can take focus and clear the selection). With a selection, colour / bold / size apply
+   * to those words only (selectionTool); without one, to the whole box.
+   */
+  let pendingRange = null;
+  function captureRange() {
+    const s = getSelection();
+    pendingRange = null;
+    if (!s.rangeCount || s.isCollapsed) return;
+    const r = s.getRangeAt(0);
+    const at = r.commonAncestorContainer;
+    if ((at.nodeType === 3 ? at.parentElement : at)?.closest?.('.tbox')) pendingRange = r.cloneRange();
+  }
+
+  function selectionTool(chart, what, arg) {
+    const range = pendingRange;
+    pendingRange = null;
+    const at = range.commonAncestorContainer;
+    const host = (at.nodeType === 3 ? at.parentElement : at)?.closest('.tbox');
+    const sec = selectedSection();
+    if (!host || !sec || !sec.contains(host)) return false;
+    host.focus({ preventScroll: true });
+    const s = getSelection();
+    s.removeAllRanges();
+    s.addRange(range);
+    document.execCommand('styleWithCSS', false, true);
+    let size = null;
+    if (what === 'bold') {
+      document.execCommand('bold');
+    } else if (what === 'color') {
+      $('ttbPop').hidden = true;
+      // Automatic = back to the box's own colour.
+      const colour = arg === 'auto' ? getComputedStyle(host).color : textColor(arg);
+      if (!colour) return true;
+      document.execCommand('foreColor', false, colour);
+    } else if (what === 'size') {
+      const start = range.startContainer.nodeType === 3 ? range.startContainer.parentElement : range.startContainer;
+      const now = parseFloat(getComputedStyle(start).fontSize) || textSize(chart);
+      if (arg === '+') size = TEXT_SIZES.find((v) => v > now) ?? TEXT_SIZE_MAX;
+      else if (arg === '-') size = [...TEXT_SIZES].reverse().find((v) => v < now) ?? TEXT_SIZE_MIN;
+      else size = Number(String(arg).slice(1));
+      if (!Number.isFinite(size) || size <= 0) return true;
+      size = Math.round(Math.min(TEXT_SIZE_MAX, Math.max(TEXT_SIZE_MIN, size)) * 10) / 10;
+      // execCommand only knows sizes 1–7: mark the selection with 7, then set the real px size.
+      document.execCommand('fontSize', false, '7');
+      host.querySelectorAll('font[size="7"], [style*="xxx-large"]').forEach((el) => {
+        el.removeAttribute('size');
+        el.style.fontSize = `${size}px`;
+      });
+    }
+    chart.html = richHTML(host, false);
+    chart.heading = plainOf(host);
+    save();
+    layoutCard(cardEl()); // the box grows if the text got bigger
+    placeSelection();
+    if (size) $('ttbSize').value = size;
+    return true;
+  }
+
+  function textTool(action) {
+    const chart = current?.charts.find((c) => c.id === selectedId);
+    if (!chart || chart.type !== 'text') return;
+    const [what, arg] = action.split(':');
+    if (['bold', 'color', 'size'].includes(what) && pendingRange && selectionTool(chart, what, arg)) return;
+    pendingRange = null;
+    if (what === 'bold') {
+      if (chart.bold) delete chart.bold;
+      else chart.bold = true;
+      if (chart.html) chart.html = stripRich(chart.html, 'font-weight');
+    } else if (what === 'align') {
+      if (arg === 'right') delete chart.align;
+      else chart.align = arg;
+    } else if (what === 'color') {
+      $('ttbPop').hidden = true;
+      if (arg === 'auto') delete chart.color;
+      else if (textColor(arg)) chart.color = textColor(arg);
+      else return;
+      if (chart.html) chart.html = stripRich(chart.html, 'color');
+    } else if (what === 'size') {
+      // "+" / "-" step through TEXT_SIZES; "=N" is a typed size. The box grows to fit (layoutText); a size
+      // whose text can't fit on the page even then is refused.
+      const now = chart.fontSize || textSize(chart);
+      let next = now;
+      if (arg === '+') next = TEXT_SIZES.find((s) => s > now) ?? TEXT_SIZE_MAX;
+      else if (arg === '-') next = [...TEXT_SIZES].reverse().find((s) => s < now) ?? TEXT_SIZE_MIN;
+      else next = Number(String(arg).slice(1));
+      if (!Number.isFinite(next) || next <= 0) {
+        syncToolbar(selectedSection());
+        return;
+      }
+      next = Math.round(Math.min(TEXT_SIZE_MAX, Math.max(TEXT_SIZE_MIN, next)) * 10) / 10;
+      if (next === chart.fontSize) {
+        syncToolbar(selectedSection());
+        return;
+      }
+      const before = { fontSize: chart.fontSize, box: chart.box && { ...chart.box }, html: chart.html };
+      chart.fontSize = next;
+      if (chart.html) chart.html = stripRich(chart.html, 'font-size'); // the whole box takes the new size
+      renderReport();
+      if (!layoutCard(cardEl())) {
+        chart.fontSize = before.fontSize;
+        withBox(chart, before.box);
+        if (before.html !== undefined) chart.html = before.html;
+      }
+    }
+    buildEditor();
+    commit();
+  }
+
+  // The red ✕ at a selected heading/text box's top-right corner (and the Delete key): remove it.
+  function removeTextBox(ask) {
+    const index = current ? current.charts.findIndex((c) => c.id === selectedId) : -1;
+    const chart = current?.charts[index];
+    if (chart?.type !== 'text') return;
+    if (ask && chart.heading.trim() && !confirm(`Remove the ${({ body: 'text', list: 'list' })[chart.style] || 'heading'} "${chart.heading.trim()}"?`)) return;
+    current.charts.splice(index, 1);
+    select(null);
+    buildEditor();
+    commit();
   }
 
   // fromPanel: the user pressed on the card in the panel itself, so it is already in view — scrolling
@@ -1478,8 +1936,32 @@
 
   function bindResize() {
     const sel = $('sel');
-    sel.innerHTML = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w']
-      .map((h) => `<span class="handle h-${h}" data-h="${h}"></span>`).join('');
+    // Edge strips first, so the handles drawn after them stay on top.
+    sel.innerHTML = '<div id="selEdges" hidden>'
+      + ['top', 'right', 'bottom', 'left'].map((s) => `<span class="sel-edge edge-${s}" data-edge="1" title="Drag to move"></span>`).join('')
+      + '</div>'
+      + ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w']
+      .map((h) => `<span class="handle h-${h}" data-h="${h}"></span>`).join('') + toolbarHTML()
+      + '<button type="button" class="sel-x" id="selX" title="Remove this text box" aria-label="Remove this text box" hidden>✕</button>';
+    // Mini toolbar: pressing it must not deselect, start a drag or take focus from the text.
+    // (Not for the size box or "More colours…": those inputs have to take the press.)
+    $('ttb').addEventListener('pointerdown', (e) => {
+      captureRange(); // words selected in the box, if any — before an input can take focus
+      if (!e.target.closest('.ttb-more, input')) e.preventDefault();
+      e.stopPropagation();
+    });
+    $('ttbSize').addEventListener('change', (e) => textTool(`size:=${e.target.value}`));
+    $('ttbSize').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') e.target.blur(); // blur fires the change
+    });
+    $('selX').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); });
+    $('selX').addEventListener('click', () => removeTextBox(false));
+    $('ttb').addEventListener('click', (e) => {
+      const t = e.target.closest('[data-t]')?.dataset.t;
+      if (t === 'colormenu') $('ttbPop').hidden = !$('ttbPop').hidden;
+      else if (t) textTool(t);
+    });
+    $('ttbCustom').addEventListener('change', (e) => textTool(`color:${e.target.value}`));
 
     // Press on a chart: select it, and start moving it once the pointer travels a few pixels
     // (so a plain click still puts the caret in the text).
@@ -1488,6 +1970,9 @@
       const sec = e.target.closest('.card > section');
       select(sec ? current.charts[sec.dataset.c]?.id ?? null : null);
       if (!sec) return;
+      // Heading/text boxes move like Word's text boxes: by their border (#sel's edge strips), so a drag
+      // inside selects text instead (user request, 2026-11-25).
+      if (current.charts[sec.dataset.c]?.type === 'text') return;
       const x0 = e.clientX;
       const y0 = e.clientY;
       const watch = (ev) => {
@@ -1503,7 +1988,9 @@
       document.addEventListener('pointerup', stop);
     });
     sel.addEventListener('pointerdown', (e) => {
-      const h = e.target.closest('[data-h]')?.dataset.h;
+      if (e.button !== 0) return;
+      // The border of a selected heading/text box: move it.
+      const h = e.target.closest('[data-edge]') ? 'move' : e.target.closest('[data-h]')?.dataset.h;
       if (!h) return;
       e.preventDefault();
       startDrag(h, e);
@@ -1517,7 +2004,14 @@
       if (card) select(card.dataset.chartId, { fromPanel: true });
     });
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && selectedId && !(e.target instanceof Element && e.target.closest('[data-e]'))) select(null);
+      const typing = e.target instanceof Element && e.target.closest('[data-e], input, textarea, select');
+      if (e.key === 'Escape' && selectedId && !typing) select(null);
+      // Delete / Backspace on a selected heading box (not while typing in it) removes it.
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId && !typing && current
+        && current.charts.find((c) => c.id === selectedId)?.type === 'text') {
+        e.preventDefault();
+        removeTextBox(true);
+      }
     });
     window.addEventListener('hashchange', () => select(null));
   }
@@ -1525,8 +2019,8 @@
   function fit() {
     const stage = $('stage');
     if (!stage) return;
-    // Stage padding (24 left, 74 right for the icon column) plus a little breathing room.
-    const gutter = 110;
+    // Stage padding (24 left, 150 right for the button column) plus a little breathing room.
+    const gutter = 186;
     const narrow = window.innerWidth <= 900;
     const byWidth = (stage.clientWidth - gutter) / 1200;
     const byHeight = (stage.clientHeight - gutter) / 1500;

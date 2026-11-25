@@ -67,13 +67,12 @@
             <path d="M12 12v5M9.5 14.5h5"/>
           </svg>
         </button>
-        <button type="button" class="tool" id="downloadTop" title="Download this page as PNG" aria-label="Download this page as PNG">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M12 4v10"/>
-            <path d="M8 11l4 4 4-4"/>
-            <path d="M5 19h14"/>
-          </svg>
-        </button>
+        <!-- Adds a heading text box to this page (movable and resizable like a chart). -->
+        <!-- Text buttons (user, 2026-11-25: words instead of the T and download icons). -->
+        <button type="button" class="tool text-tool" id="addHeadingTop" title="Add a heading box to this page">Add heading</button>
+        <button type="button" class="tool text-tool" id="addTextTop" title="Add a text box (smaller text) to this page">Add text</button>
+        <button type="button" class="tool text-tool" id="addListTop" title="Add a bullet list box to this page">Add list</button>
+        <button type="button" class="tool text-tool" id="downloadTop" title="Download this page as PNG (1638 × 2048, Facebook 4:5)">Download</button>
         <!-- Shown by buildNav() only when the report has more than one page. -->
         <button type="button" class="tool danger" id="deletePageTop" title="Delete this page" aria-label="Delete this page" hidden>
           <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -98,6 +97,8 @@
 <script src="assets/logo.js"></script>
 <!-- Picture icons for chart rows (data URLs), e.g. read-quran. -->
 <script src="assets/icon-images.js"></script>
+<!-- The report page background image (data URL), injected as a .report style rule. -->
+<script src="assets/page-bg.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
