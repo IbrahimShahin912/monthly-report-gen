@@ -223,12 +223,31 @@
    * underline. Block elements (pasted <div>/<p>) become line breaks; everything else is reduced to its
    * text. `digits` wraps digit runs in .num (Poppins) for drawing; existing .num spans are unwrapped first.
    */
-  const SAFE_COLOR = /^(#[0-9a-f]{3,8}|rgba?\(\s*[\d.]+%?\s*,\s*[\d.]+%?\s*,\s*[\d.]+%?\s*(,\s*[\d.]+\s*)?\))$/i;
+  /*
+   * Latin text inside a right-to-left box (2026-11-25, user: a pasted https://gazette.mv/iulaan/409718
+   * showed as "409718/https://gazette.mv/iulaan"). The RTL box ordered the address's pieces right to left,
+   * and mixed() pulled the number out on its own. A run of ASCII text with at least one Latin letter —
+   * a web address, an email, English words with their numbers — is kept whole as one LTR, isolated
+   * span in Poppins (Faruma draws Latin full stops like "·"). Dhivehi and plain numbers go through mixed().
+   * The span carries no inline style, so richHTML() drops it again when the box is saved.
+   */
+  const LATIN_RUN = /[\x21-\x7E]*[A-Za-z][\x21-\x7E]*(?: +[\x21-\x7E]*[A-Za-z0-9][\x21-\x7E]*)*/g;
+  function mixedText(s) {
+    let out = '';
+    let last = 0;
+    for (const m of s.matchAll(LATIN_RUN)) {
+      out += `${mixed(s.slice(last, m.index))}<span class="ltr">${esc(m[0])}</span>`;
+      last = m.index + m[0].length;
+    }
+    return out + mixed(s.slice(last));
+  }
+
+  const SAFE_COLOR =/^(#[0-9a-f]{3,8}|rgba?\(\s*[\d.]+%?\s*,\s*[\d.]+%?\s*,\s*[\d.]+%?\s*(,\s*[\d.]+\s*)?\))$/i;
   function richHTML(root, digits) {
     let out = '';
     root.childNodes.forEach((n) => {
       if (n.nodeType === 3) {
-        out += digits ? mixed(n.data) : esc(n.data);
+        out += digits ? mixedText(n.data) : esc(n.data);
         return;
       }
       if (n.nodeType !== 1) return;

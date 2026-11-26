@@ -239,6 +239,8 @@ input.tn { font-family: var(--tn), "Faruma", "Noto Sans Thaana", sans-serif; fon
 
 .report .tn { font-family: var(--tn), "Faruma", "Noto Sans Thaana", sans-serif; }
 .report .num { font-family: "Poppins", sans-serif; direction: ltr; unicode-bidi: isolate; }
+/* Latin runs in text boxes (web addresses, emails, English words): one left-to-right piece, Poppins. */
+.report .ltr { font-family: "Poppins", sans-serif; direction: ltr; unicode-bidi: isolate; }
 
 /* Report header: same width as the card (64px side margins), logo right, council name. Hardcoded. */
 .rhead {
